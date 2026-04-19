@@ -1,0 +1,103 @@
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+
+import receiptRoutes from "./modules/receipt/routes.js";
+import paymentRoutes from "./modules/payment/routes.js";
+import commonRoutes from "./modules/common/routes.js";
+import cashAllUnpostedRoutes from "./modules/cash_all_unposted/routes.js";
+import cashFlowAddRoutes from "./modules/CashFlowAdd/routes.js";
+import caseFlowAccountCodeRoutes from "./modules/case_flow_account_code/routes.js";
+import calenderApiRoutes from "./modules/calender_api/routes.js";
+import bwalUpdateGlRoutes from "./modules/bwal_update_gl/routes.js";
+import bwalInsertGlRoutes from "./modules/bwal_insert_gl/routes.js";
+import bwalConnRoutes from "./modules/bwal_conn/routes.js";
+import autocompleteRoutes from "./modules/autocomplete/routes.js";
+import adminUserRoutes from "./modules/admin_user/routes.js";
+import addReceiveRoutes from "./modules/addReceive/routes.js";
+import activeVoucherRoutes from "./modules/active_voucher/routes.js";
+import accountCodeRoutes from "./modules/account_code/routes.js";
+
+
+
+import dashboardCashRoutes       from "./modules/dashboard_cash/dashboard_cash.route.js";
+import dashboardExpenseRoutes    from "./modules/dashboard_expense/dashboard_expense.route.js";
+import dashboardIncomeRoutes     from "./modules/dashboard_income/dashboard_income.route.js";
+import glAccountCodeRoutes       from "./modules/gl_account_code/gl_account_code.route.js";
+import glAddRoutes               from "./modules/gl_add/gl_add.route.js";
+import glAllUnpostedRoutes       from "./modules/gl_all_unposted/gl_all_unposted.route.js";
+import glEditRoutes              from "./modules/gl_edit/gl_edit.route.js";
+import glViewRoutes              from "./modules/gl_view/gl_view.route.js";
+import infoListRoutes            from "./modules/info_list/info_list.route.js";
+import payAllUnpostedRoutes      from "./modules/pay_all_unposted/pay_all_unposted.route.js";
+import recAccountCodeRoutes      from "./modules/rec_account_code/rec_account_code.route.js";
+import receiveAllUnpostedRoutes  from "./modules/receive_all_unposted/receive_all_unposted.route.js";
+import receiveCodeRoutes         from "./modules/receive_code/receive_code.route.js";
+import receiveViewRoutes         from "./modules/receive_view/receive_view.route.js";
+
+
+
+
+const app = express();
+
+app.use(express.json());
+
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "http://192.168.1.137:5175"
+  ],
+  credentials: true,
+}));
+
+
+app.use("/api/receipt", receiptRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/common", commonRoutes);
+app.use("/api/cash-all-unposted", cashAllUnpostedRoutes);
+app.use("/api/cash-flow-add", cashFlowAddRoutes);
+app.use("/api/case-flow-account-code", caseFlowAccountCodeRoutes);
+app.use("/api/calender-api", calenderApiRoutes);
+app.use("/api/bwal-update-gl", bwalUpdateGlRoutes);
+app.use("/api/bwal-insert-gl", bwalInsertGlRoutes);
+app.use("/api/bwal-conn", bwalConnRoutes);
+app.use("/api/autocomplete", autocompleteRoutes);
+app.use("/api/admin-user", adminUserRoutes);
+app.use("/api/add-receive", addReceiveRoutes);
+app.use("/api/active-voucher", activeVoucherRoutes);
+app.use("/api/account-code", accountCodeRoutes);
+
+app.use("/api/dashboard-cash",          dashboardCashRoutes);      // GET  /api/dashboard/cash?month=&year=
+app.use("/api/dashboard-expense",       dashboardExpenseRoutes);   // GET  /api/dashboard/expense?month=&year=
+app.use("/api/dashboard-income",        dashboardIncomeRoutes);    // GET  /api/dashboard/income?month=&year=
+ 
+// GL — specific paths must come BEFORE the catch-all /api/gl routes
+app.use("/api/gl-account-code",         glAccountCodeRoutes);      // GET  /api/gl/account-code
+app.use("/api/gl-all-unposted",         glAllUnpostedRoutes);      // GET  /api/gl/all-unposted
+app.use("/api/gl-view",                 glViewRoutes);             // GET  /api/gl/view/:id
+app.use("/api/gl-edit",                 glEditRoutes);             // PUT  /api/gl/edit
+app.use("/api/gl-add",                      glAddRoutes);              // POST /api/gl
+ 
+// Info list
+app.use("/api/info-list",               infoListRoutes);           // GET  /api/info-list
+ 
+// Payment
+app.use("/api/payment-all-unposted",    payAllUnpostedRoutes);     // GET  /api/payment/all-unposted
+ 
+// Receive — specific paths must come BEFORE the catch-all /api/receive/:id route
+app.use("/api/receive-account-code",    recAccountCodeRoutes);     // GET  /api/receive/account-code
+app.use("/api/receive-all-unposted",    receiveAllUnpostedRoutes); // GET  /api/receive/all-unposted
+app.use("/api/receive-code",            receiveCodeRoutes);        // GET  /api/receive/code
+app.use("/api/receive-view",                 receiveViewRoutes);        // GET  /api/receive/:id
+
+
+
+app.get("/", async (_req, res) => {
+  res.send("Server running");
+});
+
+app.get("/health", async (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+export default app;

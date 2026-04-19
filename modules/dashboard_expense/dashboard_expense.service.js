@@ -1,0 +1,37 @@
+import { withConnection } from "../../config/db.js";
+
+export async function getExpenseTotal({ month, year }) {
+  const mm = String(month).padStart(2, "0");
+  const dateParam = `${mm}-${year}`;
+
+  const sql = `
+    SELECT
+      SUM(L.DEBIT) AS EXPENSE_TOTAL
+    FROM
+      GLMASTER H
+      JOIN GLDETAILS L ON H.ID = L.GLMASTERID
+      JOIN CHART_OF_ACCOUNT C ON C.ACCOUNT_ID = L.CODE
+    WHERE
+      H.GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
+      AND H.GL_ENTRY_DATE < ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
+      AND H.VOUCHER_TYPE = 2
+      AND H.POSTED = 1
+  `;
+
+  return withConnection(async (conn) => {
+    const result = await conn.execute(
+      sql,
+      { date_bv: dateParam },
+      { outFormat: 4002 }
+    );
+
+    const row = result.rows?.[0];
+    const expenseTotal = row?.EXPENSE_TOTAL != null ? Number(row.EXPENSE_TOTAL) : 0;
+
+    return {
+      date_range: dateParam,
+      voucher_type: 2,
+      total_expense: expenseTotal,
+    };
+  });
+}

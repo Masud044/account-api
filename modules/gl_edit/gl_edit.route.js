@@ -4,6 +4,6 @@ import { editGlEntry } from "./gl_edit.controller.js";
 const router = Router();
 
 // PUT /api/gl/edit
-router.put("/", editGlEntry);
+router.post("/", editGlEntry);
 
 export default router;

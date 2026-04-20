@@ -6,7 +6,7 @@ export async function listRecAccountCodes(req, res) {
     return res.status(200).json({
       success: true,
       message: "Receive account codes fetched.",
-      data,
+      ...data,
     });
   } catch (err) {
     console.error("[rec_account_code] listRecAccountCodes error:", err.message);

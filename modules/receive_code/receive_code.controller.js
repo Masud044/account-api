@@ -6,7 +6,7 @@ export async function listReceiveCodes(req, res) {
     return res.status(200).json({
       success: true,
       message: "Receive codes fetched.",
-      data,
+      ...data,
     });
   } catch (err) {
     console.error("[receive_code] listReceiveCodes error:", err.message);

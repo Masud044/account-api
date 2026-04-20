@@ -6,8 +6,8 @@ export async function getAllUnpostedPayments() {
       H.ID,
       H.VOUCHERNO,
       H.DESCRIPTION,
-      H.TRANS_DATE,
-      H.GL_ENTRY_DATE,
+       TO_CHAR(H.TRANS_DATE, 'YYYY-MM-DD') AS TRANS_DATE,
+  TO_CHAR(H.GL_ENTRY_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
       SUM(L.CREDIT) AS CREDIT
     FROM GLDETAILS L
     JOIN GLMASTER H ON H.ID = L.GLMASTERID

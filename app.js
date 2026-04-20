@@ -35,6 +35,8 @@ import receiveAllUnpostedRoutes  from "./modules/receive_all_unposted/receive_al
 import receiveCodeRoutes         from "./modules/receive_code/receive_code.route.js";
 import receiveViewRoutes         from "./modules/receive_view/receive_view.route.js";
 
+import customerRoutes from "./modules/customer-type/customer.route.js";
+import supplierRoutes from "./modules/supplier-type/supplier.route.js";
 
 
 
@@ -90,7 +92,8 @@ app.use("/api/receive-all-unposted",    receiveAllUnpostedRoutes); // GET  /api/
 app.use("/api/receive-code",            receiveCodeRoutes);        // GET  /api/receive/code
 app.use("/api/receive-view",                 receiveViewRoutes);        // GET  /api/receive/:id
 
-
+app.use("/api/customer-type", customerRoutes);   // GET /api/customer
+app.use("/api/supplier-type", supplierRoutes);   // GET /api/supplier
 
 app.get("/", async (_req, res) => {
   res.send("Server running");

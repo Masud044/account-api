@@ -91,59 +91,158 @@ export async function insertReceipt(input) {
   });
 }
 
+// export async function updateReceipt(input) {
+//   return withConnection(async (connection) => {
+//     try {
+//       const uDate = currentMmDdYyyy();
+//       await connection.execute(
+//         `UPDATE GLMASTER SET
+//           trans_date = TO_DATE(:td,'MM-DD-YYYY'),
+//           description = :des,
+//           supporting = :sup,
+//           customer_id = :cust,
+//           update_date = TO_DATE(:ud,'MM-DD-YYYY'),
+//           gl_entry_date = TO_DATE(:gd,'MM-DD-YYYY')
+//         WHERE id = :id`,
+//         {
+//           td: toMmDdYyyy(input.trans_date),
+//           des: input.receive_desc,
+//           sup: input.supporting,
+//           cust: input.supplierid,
+//           ud: uDate,
+//           gd: toMmDdYyyy(input.gl_date),
+//           id: input.masterID
+//         },
+//         { autoCommit: false }
+//       );
+
+//       for (let i = 0; i < (input.DEBIT_ID || []).length; i += 1) {
+//         await connection.execute(
+//           `UPDATE GLDETAILS SET
+//             debit = :amt, code = :acode, codedescription = :cdesc, description = :ds,
+//             update_date = TO_DATE(:ud,'MM-DD-YYYY')
+//           WHERE id = :id`,
+//           {
+//             amt: input.amount2?.[i],
+//             acode: input.acode?.[i] || "",
+//             cdesc: input.CODEDESCRIPTION?.[i] || "",
+//             ds: input.DESCRIPTION?.[i] || "",
+//             ud: uDate,
+//             id: input.DEBIT_ID[i]
+//           },
+//           { autoCommit: false }
+//         );
+//       }
+
+//       await connection.execute(
+//         `UPDATE GLDETAILS SET
+//           credit = :cr, code = :pcode, update_date = TO_DATE(:ud,'MM-DD-YYYY')
+//         WHERE id = :cid`,
+//         { cr: input.totalAmount, pcode: input.pcode, ud: uDate, cid: input.credit_id },
+//         { autoCommit: false }
+//       );
+
+//       await connection.commit();
+//       return { masterID: input.masterID };
+//     } catch (error) {
+//       await connection.rollback();
+//       throw error;
+//     }
+//   });
+// }
+
 export async function updateReceipt(input) {
   return withConnection(async (connection) => {
     try {
       const uDate = currentMmDdYyyy();
+
+      // ── 1. Update GLMASTER ─────────────────────────────────────────
       await connection.execute(
         `UPDATE GLMASTER SET
-          trans_date = TO_DATE(:td,'MM-DD-YYYY'),
-          description = :des,
-          supporting = :sup,
-          customer_id = :cust,
-          update_date = TO_DATE(:ud,'MM-DD-YYYY'),
-          gl_entry_date = TO_DATE(:gd,'MM-DD-YYYY')
+          trans_date    = TO_DATE(:td, 'MM-DD-YYYY'),
+          description   = :des,
+          supporting    = :sup,
+          customer_id   = :cust,
+          update_date   = TO_DATE(:ud, 'MM-DD-YYYY'),
+          gl_entry_date = TO_DATE(:gd, 'MM-DD-YYYY')
         WHERE id = :id`,
         {
-          td: toMmDdYyyy(input.trans_date),
-          des: input.receive_desc,
-          sup: input.supporting,
+          td:   toMmDdYyyy(input.trans_date),
+          des:  input.receive_desc,
+          sup:  input.supporting,
           cust: input.supplierid,
-          ud: uDate,
-          gd: toMmDdYyyy(input.gl_date),
-          id: input.masterID
+          ud:   uDate,
+          gd:   toMmDdYyyy(input.gl_date),
+          id:   input.masterID,
         },
         { autoCommit: false }
       );
 
-      for (let i = 0; i < (input.DEBIT_ID || []).length; i += 1) {
-        await connection.execute(
-          `UPDATE GLDETAILS SET
-            debit = :amt, code = :acode, codedescription = :cdesc, description = :ds,
-            update_date = TO_DATE(:ud,'MM-DD-YYYY')
-          WHERE id = :id`,
-          {
-            amt: input.amount2?.[i],
-            acode: input.acode?.[i] || "",
-            cdesc: input.CODEDESCRIPTION?.[i] || "",
-            ds: input.DESCRIPTION?.[i] || "",
-            ud: uDate,
-            id: input.DEBIT_ID[i]
-          },
-          { autoCommit: false }
-        );
+      // ── 2. Update CREDIT rows (account rows) ───────────────────────
+      for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {
+        const rowId = input.DEBIT_ID[i];
+
+        if (rowId && Number.isInteger(Number(rowId))) {
+          // Existing row → UPDATE
+          await connection.execute(
+            `UPDATE GLDETAILS SET
+              credit          = :amt,       
+              debit           = 0,          
+              code            = :acode,
+              codedescription = :cdesc,
+              description     = :ds,
+              update_date     = TO_DATE(:ud, 'MM-DD-YYYY')
+            WHERE id = :id`,
+            {
+              amt:   input.amount2?.[i]          || 0,
+              acode: input.acode?.[i]            || "",
+              cdesc: input.CODEDESCRIPTION?.[i]  || "",
+              ds:    input.DESCRIPTION?.[i]      || "",
+              ud:    uDate,
+              id:    Number(rowId),
+            },
+            { autoCommit: false }
+          );
+        } else {
+          // New row added during edit → INSERT
+          await connection.execute(
+            `INSERT INTO GLDETAILS
+              (glmasterid, code, credit, debit, codedescription, description)
+             VALUES
+              (:mid, :code, :amt, 0, :cdesc, :ds)`,
+            {
+              mid:   input.masterID,
+              code:  input.acode?.[i]            || "",
+              amt:   input.amount2?.[i]          || 0,
+              cdesc: input.CODEDESCRIPTION?.[i]  || "",
+              ds:    input.DESCRIPTION?.[i]      || "",
+            },
+            { autoCommit: false }
+          );
+        }
       }
 
+      // ── 3. Update DEBIT row (payment code row) ─────────────────────
+      // ✅ debit = totalAmount (not credit!)
       await connection.execute(
         `UPDATE GLDETAILS SET
-          credit = :cr, code = :pcode, update_date = TO_DATE(:ud,'MM-DD-YYYY')
+          debit       = :dr,        
+          credit      = 0,          
+          code        = :pcode,
+          update_date = TO_DATE(:ud, 'MM-DD-YYYY')
         WHERE id = :cid`,
-        { cr: input.totalAmount, pcode: input.pcode, ud: uDate, cid: input.credit_id },
+        {
+          dr:    input.totalAmount,
+          pcode: input.pcode,
+          ud:    uDate,
+          cid:   input.credit_id,
+        },
         { autoCommit: false }
       );
 
       await connection.commit();
       return { masterID: input.masterID };
+
     } catch (error) {
       await connection.rollback();
       throw error;

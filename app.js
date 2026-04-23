@@ -37,6 +37,7 @@ import receiveViewRoutes         from "./modules/receive_view/receive_view.route
 
 import customerRoutes from "./modules/customer-type/customer.route.js";
 import supplierRoutes from "./modules/supplier-type/supplier.route.js";
+import voucherDownloadRoute from "./modules/payment-pdf-get/route.js";
 
 
 
@@ -44,12 +45,16 @@ const app = express();
 
 app.use(express.json());
 
+// app.use(cors({
+//   origin: [
+//     "http://localhost:5173",
+//     "http://192.168.1.137:5175"
+//   ],
+//   credentials: true,
+// }));
+
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://192.168.1.137:5175"
-  ],
-  credentials: true,
+  origin: "*"
 }));
 
 
@@ -94,6 +99,9 @@ app.use("/api/receive-view",                 receiveViewRoutes);        // GET  
 
 app.use("/api/customer-type", customerRoutes);   // GET /api/customer
 app.use("/api/supplier-type", supplierRoutes);   // GET /api/supplier
+
+
+app.use("/api/voucher", voucherDownloadRoute);
 
 app.get("/", async (_req, res) => {
   res.send("Server running");

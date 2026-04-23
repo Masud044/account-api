@@ -13,6 +13,7 @@ function initThickMode() {
       oracledb.initOracleClient();
     }
     thickModeInitialized = true;
+    oracledb.fetchAsString = [oracledb.DATE];
   } catch (err) {
     const message = String(err?.message || "");
     if (message.includes("already been initialized")) {

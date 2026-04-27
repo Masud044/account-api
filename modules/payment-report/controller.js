@@ -1,7 +1,7 @@
 // controllers/voucherDownloadController.js
-import { getVoucherFullDetails } from "../payment-pdf-get/service.js";
-import { generatePDF }           from "../pdf-excel/pdf-generate.js";
-import { generateExcel }         from "../pdf-excel/excel-generate.js";
+import { getVoucherFullDetails } from "./service.js";
+import { generatePDF }           from "../payment-pdf-excel/pdf-generate.js";
+import { generateExcel }         from "../payment-pdf-excel/excel-generate.js";
 
 /**
  * GET /api/voucher/download/:id?type=pdf|excel

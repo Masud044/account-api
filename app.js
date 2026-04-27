@@ -37,7 +37,12 @@ import receiveViewRoutes         from "./modules/receive_view/receive_view.route
 
 import customerRoutes from "./modules/customer-type/customer.route.js";
 import supplierRoutes from "./modules/supplier-type/supplier.route.js";
-import voucherDownloadRoute from "./modules/payment-pdf-get/route.js";
+import voucherDownloadRoute from "./modules/payment-report/route.js";
+import receiptDownloadRoute from "./modules/receive-report/route.js";
+
+import journalDownloadRoute from "./modules/gl-report/route.js";
+import cashDownloadRoute from "./modules/cash-report/route.js";
+
 
 
 
@@ -102,6 +107,9 @@ app.use("/api/supplier-type", supplierRoutes);   // GET /api/supplier
 
 
 app.use("/api/voucher", voucherDownloadRoute);
+app.use("/api/receipt", receiptDownloadRoute);
+app.use("/api/journal", journalDownloadRoute);
+app.use("/api/cash-transfer", cashDownloadRoute);
 
 app.get("/", async (_req, res) => {
   res.send("Server running");

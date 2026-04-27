@@ -43,6 +43,17 @@ import receiptDownloadRoute from "./modules/receive-report/route.js";
 import journalDownloadRoute from "./modules/gl-report/route.js";
 import cashDownloadRoute from "./modules/cash-report/route.js";
 
+// inventory route
+
+import inventoriesRoutes     from './modules/inventory/inventory.route.js';
+import itemRoutes     from './modules/item/item.route.js';
+import itemStockRoutes     from './modules/item-stock/item-stock.route.js';
+import storeRoutes     from './modules/store/store.route.js';
+import uomRoutes from "./modules/inv_uom/inv-uom.route.js";
+import invTypeRouter from './modules/inv-type/route.js';
+import requisitionRoutes from "./modules/requisition-master/requisition-master.routes.js";
+
+
 
 
 
@@ -105,11 +116,25 @@ app.use("/api/receive-view",                 receiveViewRoutes);        // GET  
 app.use("/api/customer-type", customerRoutes);   // GET /api/customer
 app.use("/api/supplier-type", supplierRoutes);   // GET /api/supplier
 
+// report route
 
 app.use("/api/voucher", voucherDownloadRoute);
 app.use("/api/receipt", receiptDownloadRoute);
 app.use("/api/journal", journalDownloadRoute);
 app.use("/api/cash-transfer", cashDownloadRoute);
+
+// inventory route
+
+app.use("/api/inventory",  inventoriesRoutes);
+app.use("/api/item",  itemRoutes);
+app.use("/api/item-stock",  itemStockRoutes);
+app.use("/api/stores", storeRoutes);
+app.use("/api/inv-uom", uomRoutes);
+app.use('/api/inv-type', invTypeRouter);
+// app.use('/api/reqmaster', reqMasterRouter);
+// app.use('/api/reqdetail', reqDetailRouter);
+// // app.use('/api/requisitions', requisitionRoutes);
+app.use("/api/requisitions", requisitionRoutes);
 
 app.get("/", async (_req, res) => {
   res.send("Server running");

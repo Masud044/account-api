@@ -54,6 +54,12 @@ import invTypeRouter from './modules/inv-type/route.js';
 import requisitionRoutes from "./modules/requisition-master/requisition-master.routes.js";
 
 
+import chartOfAccountRoutes from "./modules/chart-account/route.js";
+
+
+
+
+
 
 
 
@@ -131,10 +137,9 @@ app.use("/api/item-stock",  itemStockRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/inv-uom", uomRoutes);
 app.use('/api/inv-type', invTypeRouter);
-// app.use('/api/reqmaster', reqMasterRouter);
-// app.use('/api/reqdetail', reqDetailRouter);
-// // app.use('/api/requisitions', requisitionRoutes);
+
 app.use("/api/requisitions", requisitionRoutes);
+app.use("/api/chart-account", chartOfAccountRoutes);
 
 app.get("/", async (_req, res) => {
   res.send("Server running");

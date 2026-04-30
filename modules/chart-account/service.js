@@ -20,7 +20,7 @@ export async function addChartAccount(body) {
   await withConnection(async (conn) => {
     // ── 1. Insert the new account (name only, rest filled in below) ──────────
     await conn.execute(
-      `INSERT INTO chart_of_account (account_name) VALUES (:account_name)`,
+      `INSERT INTO chart_of_account (account_name, entry_date) VALUES (:account_name, SYSDATE)`,
       { account_name },
       { autoCommit: false }
     );

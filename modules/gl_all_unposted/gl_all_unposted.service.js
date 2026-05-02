@@ -6,6 +6,7 @@ export async function getAllUnpostedGl() {
       H.ID,
       H.VOUCHERNO,
       H.DESCRIPTION,
+      H.POSTED,
       H.TRANS_DATE,
       H.GL_ENTRY_DATE,
       SUM(L.DEBIT)   AS DEBIT,
@@ -13,8 +14,8 @@ export async function getAllUnpostedGl() {
     FROM GLDETAILS L
     JOIN GLMASTER H ON H.ID = L.GLMASTERID
     WHERE H.VOUCHER_TYPE = 3
-      AND H.POSTED = 0
-    GROUP BY H.ID, H.VOUCHERNO, H.DESCRIPTION, H.TRANS_DATE, H.GL_ENTRY_DATE
+      
+    GROUP BY H.ID, H.VOUCHERNO, H.DESCRIPTION,H.POSTED, H.TRANS_DATE, H.GL_ENTRY_DATE
     ORDER BY H.TRANS_DATE DESC
   `;
 

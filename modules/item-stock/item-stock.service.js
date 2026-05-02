@@ -135,7 +135,7 @@ export const getAllItemStocks = async ({ page = 1, limit = 20 } = {}) => {
     `;
 
     const result = await conn.execute(sql, { offset, endRow: offset + limit }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
-console.log("Sample row:", JSON.stringify(result.rows[0]));
+// console.log("Sample row:", JSON.stringify(result.rows[0]));
 return result.rows;
   } finally {
     await conn.close();

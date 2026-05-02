@@ -4,7 +4,8 @@ export async function getInfoList() {
   return withConnection(async (conn) => {
     // --- 1. Fetch all unposted vouchers from GLMASTER ---
     const masterResult = await conn.execute(
-      "SELECT * FROM GLMASTER WHERE POSTED = 0 ORDER BY ID DESC",
+      // "SELECT * FROM GLMASTER WHERE POSTED = 0 ORDER BY ID DESC",
+      "SELECT * FROM GLMASTER ORDER BY ID DESC",
       {},
       { outFormat: 4002 }
     );

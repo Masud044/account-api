@@ -57,6 +57,7 @@ import requisitionRoutes from "./modules/requisition-master/requisition-master.r
 import chartOfAccountRoutes from "./modules/chart-account/route.js";
 
 import authV2Route from "./modules/auth-v2/auth-v2.routes.js";
+import userManagementRoutes from "./modules/user-management/user-management.routes.js";
 
 
 
@@ -143,6 +144,9 @@ app.use('/api/inv-type', invTypeRouter);
 app.use("/api/requisitions", requisitionRoutes);
 app.use("/api/chart-account", chartOfAccountRoutes);
 
+
+
+app.use("/api/users", userManagementRoutes);
 
 app.use("/api/v2/auth", authV2Route);
 

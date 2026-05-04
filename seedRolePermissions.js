@@ -1,8 +1,10 @@
-// seedRolePermissions.js
-// Maps all 55 permissions to 4 roles based EXACTLY on HRMS_Features.pdf matrix
-// Run AFTER: seedRoles.js → seedRbac.js → this file
+// seedRolePermissions.js — Account API
+// Maps permissions to roles:
+//   Admin     → All 42 permissions (full access)
+//   Inventory → 19 inventory permissions only
+// Run AFTER: seedRole.js → seedRBAC.js → this file
 
-import { getConnection, connectDB } from "./src/config/db.js";
+import { getConnection } from "./config/db.js";
 
 export const seedRolePermissions = async () => {
   let conn;
@@ -15,16 +17,14 @@ export const seedRolePermissions = async () => {
         `SELECT ID FROM HCM.ROLES WHERE ROLE_NAME = :1`, [name]
       );
       if (res.rows.length === 0)
-        throw new Error(`Role '${name}' not found. Run seedRoles.js first.`);
+        throw new Error(`Role '${name}' not found. Run seedRole.js first.`);
       return res.rows[0][0];
     };
 
-    const adminId      = await getRoleId("Admin");
-    const hrId         = await getRoleId("HR");
-    const supervisorId = await getRoleId("Supervisor");
-    const employeeId   = await getRoleId("Employee");
+    const adminId     = await getRoleId("Admin");
+    const inventoryId = await getRoleId("Inventory");
 
-    console.log(`✅ Roles → Admin:${adminId} HR:${hrId} Supervisor:${supervisorId} Employee:${employeeId}`);
+    console.log(`✅ Roles → Admin:${adminId}  Inventory:${inventoryId}`);
 
     // ── 2. Fetch all permissions: code → id ───────────────────────────────────
     const allPermsRes = await conn.execute(
@@ -58,154 +58,45 @@ export const seedRolePermissions = async () => {
     };
 
     // ═════════════════════════════════════════════════════════════════════════
-    // ADMIN — Full access to all 55 permissions
-    // Every ✓ column in every matrix table
+    // ADMIN — Full access to ALL 42 permissions
+    // Dashboard + Main Entry + Main Report + Inventory
     // ═════════════════════════════════════════════════════════════════════════
-    console.log("👑 Seeding ADMIN (full access)...");
+    console.log("👑 Seeding ADMIN (full access to all permissions)...");
     for (const code of Object.keys(permMap)) {
       await assign(adminId, code);
     }
+    console.log("  ✓ Admin — all permissions assigned.");
 
     // ═════════════════════════════════════════════════════════════════════════
-    // HR — All operational permissions
-    // Restricted from Admin-only system config per matrix:
-    //   ✗ Configure Pay Elements / Deduction   → PAY_CONFIG
-    //   ✗ Configure Tax Slabs                  → PAY_TAX_SLABS
-    //   ✗ Configure PF Rules                   → PF_RULES_CONFIG
-    //   ✗ Configure Gratuity Formula            → GRAT_FORMULA_CONFIG
-    //   ✗ Create Loan Category                 → LOAN_CAT_CREATE
-    //   ✗ Take AI-based Team Attendance        → ATT_REALTIME_AI (Supervisor only)
+    // INVENTORY — Only 19 inventory permissions
+    // No access to Dashboard, Main Entry, or Main Report
     // ═════════════════════════════════════════════════════════════════════════
-    console.log("👤 Seeding HR...");
-    const HR_RESTRICTED = new Set([
-      "PAY_CONFIG",
-      "PAY_TAX_SLABS",
-      "PF_RULES_CONFIG",
-      "GRAT_FORMULA_CONFIG",
-      "LOAN_CAT_CREATE",
-      "ATT_REALTIME_AI",
-    ]);
-    for (const code of Object.keys(permMap)) {
-      if (!HR_RESTRICTED.has(code)) {
-        await assign(hrId, code);
-      }
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // SUPERVISOR — Team management + self-service only
-    // Sourced row-by-row from matrix ✓ column (pages 10–15)
-    // ═════════════════════════════════════════════════════════════════════════
-    console.log("🏢 Seeding SUPERVISOR...");
-    const SUPERVISOR_PERMISSIONS = [
-      // Dashboard
-      "DASH_VIEW_TEAM",       // ✓ Manager Dashboard
-      "DASH_VIEW_SELF",       // ✓ Employee Dashboard (self)
-
-      // Core HR
-      "ORG_CHART_VIEW",       // ✓ View Employee Details (team only)
-
-      // Attendance
-      "ATT_SCHEDULE_MANAGE",  // ✓ Create/Approve/Modify Work Schedule (Team)
-      "ATT_REALTIME_AI",      // ✓ ONLY Supervisor — AI face detection attendance
-      "ATT_VIEW_TEAM",        // ✓ View Attendance (Team)
-      "ATT_REPORT_ALL",       // ✓ Attendance Reports (team)
-      "ATT_LEAVE_APPLY",      // ✓ Apply for Leave / Late (self)
-      "ATT_LEAVE_APPROVE",    // ✓ Approve Leave / Late (team)
-
-      // Payroll
-      "PAY_PAYSLIP_SELF",     // ✓ View Payslip (self)
-
-      // Performance
-      "PERF_REVIEW_SUBMIT",   // ✓ Employee Self-Appraisal + Supervisor Evaluation
-                              //   + Recommend Increment/Promotion
-      "PERF_VIEW_REPORT",     // ✓ View Appraisal Result (team)
-
-      // Self-Service
-      "ESS_PROFILE_UPDATE",   // ✓ Update Personal Information (self)
-      "ESS_LEAVE_APPLY",      // ✓ Apply for Leave (self)
-      "ESS_LATE_APPLY",       // ✓ Apply for Late (self)
-      "ESS_ATT_CORRECT",      // ✓ Attendance Correction Request (self)
-      "ESS_LOAN_APPLY",       // ✓ Apply for Loan / Advance (self)
-      "ESS_ATT_VIEW",         // ✓ View Own Attendance (self)
-      "MSS_APPROVE_TEAM",     // ✓ Approve Team Requests
-      "MSS_TEAM_VIEW",        // ✓ View Team Attendance / Profile
-
-      // PF Management
-      "PF_STATEMENT_VIEW",    // ✓ View PF Statement (team)
-
-      // Gratuity
-      // ✗ GRAT_STATEMENT_VIEW — Supervisor explicitly ✗ per matrix page 13
-
-      // Loan & Advance
-      "LOAN_APPROVE",         // ✓ Approve Loan Request (team)
-      "LOAN_LEDGER_VIEW",     // ✓ View Loan Ledger (team)
-
-      // Document Management
-      "DOC_TEAM_VIEW",        // ✓ View Team Documents
-      "DOC_SELF_VIEW",        // ✓ View Own Documents (self)
-
-      // Communication
-      "COMM_TEAM_MSG",        // ✓ Send Team Messages
-      "COMM_RECEIVE",         // ✓ Receive Notifications
-
-      // Reports
-      "REP_GENERATE",         // ✓ Attendance Reports (team) + Appraisal Reports (team)
-                              //   + Employee List (team)
+    console.log("\n📦 Seeding INVENTORY (inventory permissions only)...");
+    const INVENTORY_PERMISSIONS = [
+      "INV_VIEW",
+      "INV_CREATE",
+      "INV_UPDATE",
+      "INV_DELETE",
+      "ITEM_VIEW",
+      "ITEM_CREATE",
+      "ITEM_UPDATE",
+      "ITEM_DELETE",
+      "ITEM_STOCK_VIEW",
+      "ITEM_STOCK_MANAGE",
+      "STORE_VIEW",
+      "STORE_MANAGE",
+      "UOM_VIEW",
+      "UOM_MANAGE",
+      "INV_TYPE_VIEW",
+      "INV_TYPE_MANAGE",
+      "REQUISITION_VIEW",
+      "REQUISITION_CREATE",
+      "REQUISITION_APPROVE",
     ];
-    for (const code of SUPERVISOR_PERMISSIONS) {
-      await assign(supervisorId, code);
-    }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // EMPLOYEE — Personal / self-service access only
-    // Sourced row-by-row from matrix ✓ column (pages 10–15)
-    // ═════════════════════════════════════════════════════════════════════════
-    console.log("👨‍💼 Seeding EMPLOYEE...");
-    const EMPLOYEE_PERMISSIONS = [
-      // Dashboard
-      "DASH_VIEW_SELF",       // ✓ Employee Dashboard (self)
-
-      // Core HR
-      "ORG_CHART_VIEW",       // ✓ View Employee Details (self only)
-
-      // Attendance
-      "ATT_LEAVE_APPLY",      // ✓ Apply for Leave / Late (self)
-
-      // Payroll
-      "PAY_PAYSLIP_SELF",     // ✓ View Payslip (self)
-
-      // Performance
-      "PERF_REVIEW_SUBMIT",   // ✓ Employee Self-Appraisal (self)
-      "PERF_VIEW_REPORT",     // ✓ View Appraisal Result (self)
-
-      // Self-Service
-      "ESS_PROFILE_UPDATE",   // ✓ Update Personal Information (self)
-      "ESS_LEAVE_APPLY",      // ✓ Apply for Leave (self)
-      "ESS_LATE_APPLY",       // ✓ Apply for Late (self)
-      "ESS_ATT_CORRECT",      // ✓ Attendance Correction Request (self)
-      "ESS_LOAN_APPLY",       // ✓ Apply for Loan / Advance (self)
-      "ESS_ATT_VIEW",         // ✓ View Own Attendance (self)
-
-      // PF Management
-      "PF_STATEMENT_VIEW",    // ✓ View PF Statement (self)
-
-      // Gratuity
-      "GRAT_STATEMENT_VIEW",  // ✓ View Gratuity Statement (self)
-
-      // Loan & Advance
-      "LOAN_LEDGER_VIEW",     // ✓ View Loan Ledger (self)
-
-      // Document Management
-      "DOC_SELF_VIEW",        // ✓ View Own Documents (self)
-
-      // Communication
-      "COMM_RECEIVE",         // ✓ Receive Notifications
-
-      // Reports
-      "REP_GENERATE",         // ✓ Employee List (self)
-    ];
-    for (const code of EMPLOYEE_PERMISSIONS) {
-      await assign(employeeId, code);
+    for (const code of INVENTORY_PERMISSIONS) {
+      await assign(inventoryId, code);
+      console.log(`  ✓ ${code}`);
     }
 
     await conn.commit();
@@ -215,12 +106,13 @@ export const seedRolePermissions = async () => {
       `SELECT r.ROLE_NAME, COUNT(rp.PERMISSION_ID) AS CNT
        FROM HCM.ROLES r
        LEFT JOIN HCM.ROLE_PERMISSIONS rp ON r.ID = rp.ROLE_ID
+       WHERE r.ROLE_NAME IN ('Admin', 'Inventory')
        GROUP BY r.ROLE_NAME
        ORDER BY CNT DESC`
     );
     console.log("\n📊 Final Role–Permission Summary:");
     for (const [roleName, cnt] of countRes.rows) {
-      console.log(`  ${roleName.padEnd(12)}: ${cnt} permissions`);
+      console.log(`  ${String(roleName).padEnd(12)}: ${cnt} permissions`);
     }
     console.log("\n✅ Role–Permission Mapping Complete!");
 
@@ -235,7 +127,6 @@ export const seedRolePermissions = async () => {
 
 const run = async () => {
   try {
-    await connectDB();
     await seedRolePermissions();
     process.exit(0);
   } catch (err) {

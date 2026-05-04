@@ -58,6 +58,10 @@ import chartOfAccountRoutes from "./modules/chart-account/route.js";
 
 import authV2Route from "./modules/auth-v2/auth-v2.routes.js";
 import userManagementRoutes from "./modules/user-management/user-management.routes.js";
+import empImageRoutes from "./modules/employee-image/employee-image.routes.js";
+
+import customerInfoRoutes from "./modules/customer/route.js";
+import supplierInfoRoutes from "./modules/supplier/route.js";
 
 
 
@@ -143,6 +147,11 @@ app.use('/api/inv-type', invTypeRouter);
 
 app.use("/api/requisitions", requisitionRoutes);
 app.use("/api/chart-account", chartOfAccountRoutes);
+
+app.use("/api/emp-images", empImageRoutes);
+
+app.use("/api/supplier", supplierInfoRoutes);
+app.use("/api/customer", customerInfoRoutes);
 
 
 

@@ -63,6 +63,8 @@ import empImageRoutes from "./modules/employee-image/employee-image.routes.js";
 import customerInfoRoutes from "./modules/customer/route.js";
 import supplierInfoRoutes from "./modules/supplier/route.js";
 
+import gldocRouter from "./modules/gl-doc/route.js";
+
 
 
 
@@ -152,6 +154,9 @@ app.use("/api/emp-images", empImageRoutes);
 
 app.use("/api/supplier", supplierInfoRoutes);
 app.use("/api/customer", customerInfoRoutes);
+
+
+app.use("/api/gldoc", gldocRouter);
 
 
 

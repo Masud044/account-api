@@ -1,4 +1,4 @@
-import { withConnection } from "../../config/db.js";
+import { withConnection, oracledb } from "../../config/db.js";
 
 export async function getGlAccountCodes() {
   const sql = `
@@ -9,7 +9,7 @@ export async function getGlAccountCodes() {
   `;
 
   return withConnection(async (conn) => {
-    const result = await conn.execute(sql, {}, { outFormat: 4002 });
+    const result = await conn.execute(sql, {},  { outFormat: oracledb.OUT_FORMAT_OBJECT });
     return {
       count: result.rows.length,
       data: result.rows,

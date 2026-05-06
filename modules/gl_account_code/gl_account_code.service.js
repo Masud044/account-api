@@ -4,7 +4,7 @@ export async function getGlAccountCodes() {
   const sql = `
     SELECT ACCOUNT_ID, ACCOUNT_NAME
     FROM CHART_OF_ACCOUNT
-    WHERE LASTLEVEL = 1
+     WHERE LASTLEVEL = 1
     ORDER BY ACCOUNT_ID
   `;
 

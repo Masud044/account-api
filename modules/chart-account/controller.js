@@ -35,11 +35,11 @@ export async function addChartAccountHandler(req, res) {
 
 /**
  * GET /api/chart-account
- * Optional query params: ?enabled=1  ?lebel=2
+ * Returns the full chart-of-account hierarchy (CONNECT BY tree).
  */
 export async function getAllChartAccountsHandler(req, res) {
   try {
-    const rows = await getAllChartAccounts(req.query);
+    const rows = await getAllChartAccounts();
     return res.status(200).json({ success: true, data: rows });
   } catch (err) {
     console.error("[ChartAccount] getAllChartAccountsHandler error:", err);

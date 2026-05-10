@@ -24,13 +24,13 @@ export const seedRoles = async () => {
 
     for (const r of rolesData) {
       const checkRes = await conn.execute(
-        `SELECT ID FROM HCM.ROLES WHERE ROLE_NAME = :1`,
+        `SELECT ID FROM ROLES WHERE ROLE_NAME = :1`,
         [r.name]
       );
 
       if (checkRes.rows.length === 0) {
         await conn.execute(
-          `INSERT INTO HCM.ROLES (ROLE_NAME, DESCRIPTION) VALUES (:1, :2)`,
+          `INSERT INTO ROLES (ROLE_NAME, DESCRIPTION) VALUES (:1, :2)`,
           [r.name, r.desc]
         );
         console.log(`  + Role '${r.name}' inserted successfully.`);

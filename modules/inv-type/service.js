@@ -19,7 +19,7 @@ export const getInvTypeById = async (id) => {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `SELECT ID, DESCRIPTIO FROM HCM.INV_TYPE WHERE ID = :id`,
+      `SELECT ID, DESCRIPTIO FROM INV_TYPE WHERE ID = :id`,
       [ id ],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -33,7 +33,7 @@ export const createInvType = async ({ description }) => {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `INSERT INTO HCM.INV_TYPE (DESCRIPTIO) VALUES (:descriptio)`,
+      `INSERT INTO INV_TYPE (DESCRIPTIO) VALUES (:descriptio)`,
       { descriptio },
       { autoCommit: true }
     );
@@ -47,7 +47,7 @@ export const updateInvType = async (id, { description }) => {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `UPDATE HCM.INV_TYPE SET DESCRIPTIO = :descriptio WHERE ID = :id`,
+      `UPDATE INV_TYPE SET DESCRIPTIO = :descriptio WHERE ID = :id`,
       { id, descriptio },
       { autoCommit: true }
     );
@@ -61,7 +61,7 @@ export const deleteInvType = async (id) => {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `DELETE FROM HCM.INV_TYPE WHERE ID = :id`,
+      `DELETE FROM INV_TYPE WHERE ID = :id`,
       { id },
       { autoCommit: true }
     );

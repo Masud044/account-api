@@ -14,9 +14,9 @@ export const seedRbacData = async () => {
     // MODULES (4)
     // ─────────────────────────────────────────────────────────────────────────
     const modulesData = [
-      { name: "Dashboard",   desc: "Cash, Expense and Income dashboards",                          seq: 1 },
-      { name: "Main Entry",  desc: "Receipt, Payment, Journal, Cash flow and Voucher management",  seq: 2 },
-      { name: "Main Report", desc: "Voucher, Journal, Cash transfer and Chart of accounts Reports", seq: 3 },
+      { name: "Home",   desc: "Cash, Expense and Income dashboards",                          seq: 1 },
+      { name: "Voucher Entry",  desc: "Receipt, Payment, Journal, Cash flow and Voucher management",  seq: 2 },
+      { name: "Account Report", desc: "Voucher, Journal, Cash transfer and Chart of accounts Reports", seq: 3 },
       { name: "Inventory",   desc: "Items, Stock, Stores, UOM, Types and Requisitions",            seq: 4 },
     ];
 
@@ -25,7 +25,7 @@ export const seedRbacData = async () => {
     console.log("📦 Inserting Modules...");
     for (const m of modulesData) {
       const existing = await conn.execute(
-        `SELECT ID FROM HCM.MODULES WHERE MODULE_NAME = :1`, [m.name]
+        `SELECT ID FROM MODULES WHERE MODULE_NAME = :1`, [m.name]
       );
       if (existing.rows.length > 0) {
         moduleMap[m.name] = existing.rows[0][0];
@@ -33,7 +33,7 @@ export const seedRbacData = async () => {
         continue;
       }
       const result = await conn.execute(
-        `INSERT INTO HCM.MODULES (MODULE_NAME, DESCRIPTION, SEQUENCE_NO)
+        `INSERT INTO MODULES (MODULE_NAME, DESCRIPTION, SEQUENCE_NO)
          VALUES (:m_name, :m_desc, :m_seq)
          RETURNING ID INTO :returned_id`,
         {
@@ -53,33 +53,33 @@ export const seedRbacData = async () => {
     const permissionsData = [
 
       // ── 1. Dashboard (3) ──────────────────────────────────────────────────
-      { mName: "Dashboard", code: "DASH_VIEW_CASH",    name: "View Cash Dashboard",    desc: "Access cash flow dashboard with monthly and yearly summaries." },
-      { mName: "Dashboard", code: "DASH_VIEW_EXPENSE", name: "View Expense Dashboard", desc: "Access expense dashboard with category breakdowns and trends." },
-      { mName: "Dashboard", code: "DASH_VIEW_INCOME",  name: "View Income Dashboard",  desc: "Access income dashboard with source analysis and trends." },
+      { mName: "Home", code: "DASH_VIEW_CASH",    name: "View Cash Dashboard",    desc: "Access cash flow dashboard with monthly and yearly summaries." },
+      { mName: "Home", code: "DASH_VIEW_EXPENSE", name: "View Expense Dashboard", desc: "Access expense dashboard with category breakdowns and trends." },
+      { mName: "Home", code: "DASH_VIEW_INCOME",  name: "View Income Dashboard",  desc: "Access income dashboard with source analysis and trends." },
 
       // ── 2. Main Entry (15) ────────────────────────────────────────────────
-      { mName: "Main Entry", code: "RECEIPT_VIEW",     name: "View Receipts",       desc: "View all receipt vouchers and receipt history." },
-      { mName: "Main Entry", code: "RECEIPT_CREATE",   name: "Create Receipt",      desc: "Create new receipt vouchers." },
-      { mName: "Main Entry", code: "RECEIPT_UPDATE",   name: "Update Receipt",      desc: "Edit and update existing receipt vouchers." },
-      { mName: "Main Entry", code: "RECEIPT_DELETE",   name: "Delete Receipt",      desc: "Delete receipt vouchers. Admin only." },
-      { mName: "Main Entry", code: "PAYMENT_VIEW",     name: "View Payments",       desc: "View all payment vouchers and payment history." },
-      { mName: "Main Entry", code: "PAYMENT_CREATE",   name: "Create Payment",      desc: "Create new payment vouchers." },
-      { mName: "Main Entry", code: "PAYMENT_UPDATE",   name: "Update Payment",      desc: "Edit and update existing payment vouchers." },
-      { mName: "Main Entry", code: "PAYMENT_DELETE",   name: "Delete Payment",      desc: "Delete payment vouchers. Admin only." },
-      { mName: "Main Entry", code: "CASH_FLOW_VIEW",   name: "View Cash Flow",      desc: "View cash flow entries and unposted cash transactions." },
-      { mName: "Main Entry", code: "CASH_FLOW_CREATE", name: "Add Cash Flow",       desc: "Create new cash flow entries." },
-      { mName: "Main Entry", code: "GL_VIEW",          name: "View GL Entries",     desc: "View all General Ledger entries and details." },
-      { mName: "Main Entry", code: "GL_CREATE",        name: "Create GL Entry",     desc: "Add new General Ledger journal entries." },
-      { mName: "Main Entry", code: "GL_EDIT",          name: "Edit GL Entry",       desc: "Modify existing General Ledger entries." },
-      { mName: "Main Entry", code: "GL_UNPOSTED_VIEW", name: "View Unposted GL",    desc: "View all unposted GL, payment, and receive vouchers." },
-      { mName: "Main Entry", code: "GL_ACCOUNT_CODE",  name: "Manage Account Codes",desc: "View and manage GL account codes and receive codes." },
+      { mName: "Voucher Entry", code: "RECEIPT_VIEW",     name: "View Receipts",       desc: "View all receipt vouchers and receipt history." },
+      { mName: "Voucher Entry", code: "RECEIPT_CREATE",   name: "Create Receipt",      desc: "Create new receipt vouchers." },
+      { mName: "Voucher Entry", code: "RECEIPT_UPDATE",   name: "Update Receipt",      desc: "Edit and update existing receipt vouchers." },
+      { mName: "Voucher Entry", code: "RECEIPT_DELETE",   name: "Delete Receipt",      desc: "Delete receipt vouchers. Admin only." },
+      { mName: "Voucher Entry", code: "PAYMENT_VIEW",     name: "View Payments",       desc: "View all payment vouchers and payment history." },
+      { mName: "Voucher Entry", code: "PAYMENT_CREATE",   name: "Create Payment",      desc: "Create new payment vouchers." },
+      { mName: "Voucher Entry", code: "PAYMENT_UPDATE",   name: "Update Payment",      desc: "Edit and update existing payment vouchers." },
+      { mName: "Voucher Entry", code: "PAYMENT_DELETE",   name: "Delete Payment",      desc: "Delete payment vouchers. Admin only." },
+      { mName: "Voucher Entry", code: "CASH_FLOW_VIEW",   name: "View Cash Flow",      desc: "View cash flow entries and unposted cash transactions." },
+      { mName: "Voucher Entry", code: "CASH_FLOW_CREATE", name: "Add Cash Flow",       desc: "Create new cash flow entries." },
+      { mName: "Voucher Entry", code: "GL_VIEW",          name: "View GL Entries",     desc: "View all General Ledger entries and details." },
+      { mName: "Voucher Entry", code: "GL_CREATE",        name: "Create GL Entry",     desc: "Add new General Ledger journal entries." },
+      { mName: "Voucher Entry", code: "GL_EDIT",          name: "Edit GL Entry",       desc: "Modify existing General Ledger entries." },
+      { mName: "Voucher Entry", code: "GL_UNPOSTED_VIEW", name: "View Unposted GL",    desc: "View all unposted GL, payment, and receive vouchers." },
+      { mName: "Voucher Entry", code: "GL_ACCOUNT_CODE",  name: "Manage Account Codes",desc: "View and manage GL account codes and receive codes." },
 
       // ── 3. Main Report (5) ────────────────────────────────────────────────
-      { mName: "Main Report", code: "REP_VOUCHER",       name: "Voucher Report",       desc: "Download and print payment voucher reports." },
-      { mName: "Main Report", code: "REP_JOURNAL",       name: "Journal Report",       desc: "Generate GL journal entry reports." },
-      { mName: "Main Report", code: "REP_CASH",          name: "Cash Transfer Report", desc: "Generate cash transfer and cash flow reports." },
-      { mName: "Main Report", code: "REP_CHART_ACCOUNT", name: "Chart of Accounts",    desc: "View and export the full chart of accounts." },
-      { mName: "Main Report", code: "REP_RECEIVE",       name: "Receive Report",       desc: "Download and print receive voucher reports." },
+      { mName: "Account Report", code: "REP_VOUCHER",       name: "Voucher Report",       desc: "Download and print payment voucher reports." },
+      { mName: "Account Report", code: "REP_JOURNAL",       name: "Journal Report",       desc: "Generate GL journal entry reports." },
+      { mName: "Account Report", code: "REP_CASH",          name: "Cash Transfer Report", desc: "Generate cash transfer and cash flow reports." },
+      { mName: "Account Report", code: "REP_CHART_ACCOUNT", name: "Chart of Accounts",    desc: "View and export the full chart of accounts." },
+      { mName: "Account Report", code: "REP_RECEIVE",       name: "Receive Report",       desc: "Download and print receive voucher reports." },
 
       // ── 4. Inventory (19) ─────────────────────────────────────────────────
       { mName: "Inventory", code: "INV_VIEW",            name: "View Inventories",       desc: "View all inventory records." },
@@ -111,14 +111,14 @@ export const seedRbacData = async () => {
         continue;
       }
       const existing = await conn.execute(
-        `SELECT ID FROM HCM.PERMISSIONS WHERE PERMISSION_CODE = :1`, [p.code]
+        `SELECT ID FROM PERMISSIONS WHERE PERMISSION_CODE = :1`, [p.code]
       );
       if (existing.rows.length > 0) {
         console.log(`  - Permission '${p.code}' already exists. Skipping.`);
         continue;
       }
       await conn.execute(
-        `INSERT INTO HCM.PERMISSIONS (MODULE_ID, PERMISSION_CODE, PERMISSION_NAME, DESCRIPTION)
+        `INSERT INTO PERMISSIONS (MODULE_ID, PERMISSION_CODE, PERMISSION_NAME, DESCRIPTION)
          VALUES (:mod_id, :p_code, :p_name, :p_desc)`,
         { mod_id: modId, p_code: p.code, p_name: p.name, p_desc: p.desc }
       );
@@ -127,7 +127,7 @@ export const seedRbacData = async () => {
 
     await conn.commit();
     console.log(`\n✅ RBAC Seed Complete: ${modulesData.length} Modules, ${permissionsData.length} Permissions.`);
-    console.log("  Dashboard:3 | Main Entry:15 | Main Report:5 | Inventory:19");
+    console.log("  Home:3 | voucher Entry:15 | Account Report:5 | Inventory:19");
     console.log("  ─────────────────────────────────────────────────────────────────────");
     console.log("  Total: 42 ✓");
 

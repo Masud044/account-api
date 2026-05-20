@@ -64,6 +64,9 @@ import customerInfoRoutes from "./modules/customer/route.js";
 import supplierInfoRoutes from "./modules/supplier/route.js";
 
 import gldocRouter from "./modules/gl-doc/route.js";
+import saleExpenseReportRoute from "./modules/sale-expense-report/route.js";
+
+
 
 
 
@@ -163,6 +166,10 @@ app.use("/api/gldoc", gldocRouter);
 app.use("/api/users", userManagementRoutes);
 
 app.use("/api/v2/auth", authV2Route);
+
+//account report
+
+app.use("/api/report", saleExpenseReportRoute);
 
 app.get("/", async (_req, res) => {
   res.send("Server running");

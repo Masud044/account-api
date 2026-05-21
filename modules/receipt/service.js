@@ -44,8 +44,8 @@ export async function insertReceipt(input) {
 
       await connection.execute(
         `INSERT INTO GLMASTER
-        (trans_date, voucher_type, description, supporting, voucherno, cashaccount, customer_id, gl_entry_date, posted)
-        VALUES(TO_DATE(:tdate,'MM-DD-YYYY'), 1, :des, :sup, :vno, :cash, :cust, TO_DATE(:gld,'MM-DD-YYYY'), 0)`,
+        (trans_date, voucher_type, description, supporting, voucherno, cashaccount, customer_id, gl_entry_date, posted,inv_type)
+        VALUES(TO_DATE(:tdate,'MM-DD-YYYY'), 1, :des, :sup, :vno, :cash, :cust, TO_DATE(:gld,'MM-DD-YYYY'), 0, :invtype)`,
         {
           tdate: toMmDdYyyy(input.trans_date),
           des: input.receive_desc,
@@ -53,7 +53,8 @@ export async function insertReceipt(input) {
           vno: voucherNo,
           cash: input.receive,
           cust: input.supplierid,
-          gld: toMmDdYyyy(input.gl_date)
+          gld: toMmDdYyyy(input.gl_date),
+          invtype: input.inv_type ?? null,  
         },
         { autoCommit: false }
       );
@@ -164,7 +165,8 @@ export async function updateReceipt(input) {
           supporting    = :sup,
           customer_id   = :cust,
           update_date   = TO_DATE(:ud, 'MM-DD-YYYY'),
-          gl_entry_date = TO_DATE(:gd, 'MM-DD-YYYY')
+          gl_entry_date = TO_DATE(:gd, 'MM-DD-YYYY'),
+           inv_type      = :invtype 
         WHERE id = :id`,
         {
           td:   toMmDdYyyy(input.trans_date),
@@ -174,6 +176,7 @@ export async function updateReceipt(input) {
           ud:   uDate,
           gd:   toMmDdYyyy(input.gl_date),
           id:   input.masterID,
+          invtype: input.inv_type ?? null,
         },
         { autoCommit: false }
       );

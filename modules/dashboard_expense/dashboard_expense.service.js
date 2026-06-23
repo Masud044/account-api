@@ -35,3 +35,37 @@ export async function getExpenseTotal({ month, year }) {
     };
   });
 }
+
+export async function getExpenseBreakdown({ month, year } = {}) {
+  let sql = `
+    SELECT
+      DESCRIPTION,
+      SUM(CREDIT) AS AMT,
+      GL_ENTRY_DATE
+    FROM
+      GLDATA
+    WHERE
+      VOUCHER_TYPE = 'Expense'
+  `;
+
+  const binds = {};
+
+  if (month && year) {
+    const mm = String(month).padStart(2, "0");
+    binds.date_bv = `${mm}-${year}`;
+    sql += `
+      AND GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
+      AND GL_ENTRY_DATE < ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
+    `;
+  }
+
+  sql += `
+    GROUP BY DESCRIPTION, GL_ENTRY_DATE
+    ORDER BY GL_ENTRY_DATE
+  `;
+
+  return withConnection(async (conn) => {
+    const result = await conn.execute(sql, binds, { outFormat: 4002 });
+    return result.rows ?? [];
+  });
+}

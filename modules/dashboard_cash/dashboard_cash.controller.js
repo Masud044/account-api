@@ -1,4 +1,4 @@
-import { getCashSummary } from "./dashboard_cash.service.js";
+import { getCashSummary, getAccountBalance  } from "./dashboard_cash.service.js";
 
 export async function getCash(req, res) {
   try {
@@ -16,6 +16,22 @@ export async function getCash(req, res) {
     return res.status(200).json({ success: true, message: "Cash summary fetched.", data });
   } catch (err) {
     console.error("[dashboard_cash] getCash error:", err.message);
+    return res.status(500).json({ success: false, message: "Internal server error." });
+  }
+}
+
+export async function getBalance(req, res) {
+  try {
+    const { code } = req.params;
+
+    if (!code || !code.trim()) {
+      return res.status(400).json({ success: false, message: "Account code is required." });
+    }
+
+    const data = await getAccountBalance({ code });
+    return res.status(200).json({ success: true, message: "Account balance fetched.", data });
+  } catch (err) {
+    console.error("[dashboard_cash] getBalance error:", err.message);
     return res.status(500).json({ success: false, message: "Internal server error." });
   }
 }

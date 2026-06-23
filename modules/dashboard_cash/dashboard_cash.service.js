@@ -46,3 +46,30 @@ export async function getCashSummary({ month, year }) {
     };
   });
 }
+
+export async function getAccountBalance({ code }) {
+  const sql = `
+    SELECT
+      (SUM(DEBIT) - SUM(CREDIT)) AS BALANCE
+    FROM
+      GLDATA
+    WHERE
+      CODE = :code_bv
+  `;
+
+  return withConnection(async (conn) => {
+    const result = await conn.execute(
+      sql,
+      { code_bv: code },
+      { outFormat: 4002 }
+    );
+
+    const row = result.rows?.[0];
+    const balance = row?.BALANCE != null ? Number(row.BALANCE) : 0;
+
+    return {
+      code,
+      balance,
+    };
+  });
+}

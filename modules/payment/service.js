@@ -192,7 +192,7 @@ export async function updatePayment(input) {
              customer_id    = :cust,
              update_date    = TO_DATE(:ud,'MM-DD-YYYY'),
              gl_entry_date  = TO_DATE(:gd,'MM-DD-YYYY'),
-              inv_type      = :invtype,
+              inv_type      = :invtype
          WHERE id = :id`,
         {
           td:   toMmDdYyyy(input.trans_date),

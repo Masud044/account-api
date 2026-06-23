@@ -1,9 +1,18 @@
 import { getCashSummary, getAccountBalance  } from "./dashboard_cash.service.js";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone.js";
+import utc from "dayjs/plugin/utc.js";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export async function getCash(req, res) {
   try {
-    const month = req.query.month ? parseInt(req.query.month) : new Date().getMonth() + 1;
-    const year  = req.query.year  ? parseInt(req.query.year)  : new Date().getFullYear();
+    // const month = req.query.month ? parseInt(req.query.month) : new Date().getMonth() + 1;
+    // const year  = req.query.year  ? parseInt(req.query.year)  : new Date().getFullYear();
+    const now = dayjs().tz("Asia/Dhaka");
+    const month = req.query.month ? parseInt(req.query.month) : now.month() + 1;
+    const year  = req.query.year  ? parseInt(req.query.year)  : now.year();
 
     if (isNaN(month) || month < 1 || month > 12) {
       return res.status(400).json({ success: false, message: "Invalid month. Must be 1–12." });
@@ -14,6 +23,7 @@ export async function getCash(req, res) {
 
     const data = await getCashSummary({ month, year });
     return res.status(200).json({ success: true, message: "Cash summary fetched.", data });
+    console.log("Server date:", new Date().toString(), "Month:", new Date().getMonth() + 1);
   } catch (err) {
     console.error("[dashboard_cash] getCash error:", err.message);
     return res.status(500).json({ success: false, message: "Internal server error." });

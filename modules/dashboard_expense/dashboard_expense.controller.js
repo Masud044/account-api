@@ -6,7 +6,7 @@ export async function getExpense(req, res) {
     const year  = req.query.year  ? parseInt(req.query.year)  : new Date().getFullYear();
 
     if (isNaN(month) || month < 1 || month > 12)
-      return res.status(400).json({ success: false, message: "Invalid month. Must be 1–12." });
+      return res.status(400).json({ success: false, message: "Invalid month." });
     if (isNaN(year) || year < 2000)
       return res.status(400).json({ success: false, message: "Invalid year." });
 
@@ -20,16 +20,20 @@ export async function getExpense(req, res) {
 
 export async function getExpenseDetails(req, res) {
   try {
-    const rawMonth = req.query.month;
-    const rawYear  = req.query.year;
+    const { month: rawMonth, year: rawYear, date: rawDate } = req.query;
 
-    let month = undefined;
-    let year  = undefined;
+    // specific date আসলে month/year parse করার দরকার নেই
+    if (rawDate && rawDate !== "") {
+      const data = await getExpenseBreakdown({ date: rawDate });
+      return res.status(200).json({ success: true, message: "Expense breakdown fetched.", data });
+    }
+
+    let month, year;
 
     if (rawMonth !== undefined && rawMonth !== "") {
       month = parseInt(rawMonth);
       if (isNaN(month) || month < 1 || month > 12)
-        return res.status(400).json({ success: false, message: "Invalid month. Must be 1–12." });
+        return res.status(400).json({ success: false, message: "Invalid month." });
     }
 
     if (rawYear !== undefined && rawYear !== "") {

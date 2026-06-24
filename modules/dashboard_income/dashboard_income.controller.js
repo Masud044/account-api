@@ -6,7 +6,7 @@ export async function getIncome(req, res) {
     const year  = req.query.year  ? parseInt(req.query.year)  : new Date().getFullYear();
 
     if (isNaN(month) || month < 1 || month > 12)
-      return res.status(400).json({ success: false, message: "Invalid month. Must be 1–12." });
+      return res.status(400).json({ success: false, message: "Invalid month." });
     if (isNaN(year) || year < 2000)
       return res.status(400).json({ success: false, message: "Invalid year." });
 
@@ -20,17 +20,20 @@ export async function getIncome(req, res) {
 
 export async function getIncomeDetails(req, res) {
   try {
-    const rawMonth = req.query.month;
-    const rawYear  = req.query.year;
+    const { month: rawMonth, year: rawYear, date: rawDate } = req.query;
 
-    let month = undefined;
-    let year  = undefined;
+    // specific date আসলে সরাসরি date দিয়ে query
+    if (rawDate && rawDate !== "") {
+      const data = await getIncomeBreakdown({ date: rawDate });
+      return res.status(200).json({ success: true, message: "Income breakdown fetched.", data });
+    }
 
-    // শুধু value থাকলে parse করবে, "" বা undefined হলে undefined থাকবে
+    let month, year;
+
     if (rawMonth !== undefined && rawMonth !== "") {
       month = parseInt(rawMonth);
       if (isNaN(month) || month < 1 || month > 12)
-        return res.status(400).json({ success: false, message: "Invalid month. Must be 1–12." });
+        return res.status(400).json({ success: false, message: "Invalid month." });
     }
 
     if (rawYear !== undefined && rawYear !== "") {

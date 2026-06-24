@@ -59,7 +59,7 @@ function getDhakaNow() {
 export async function getCash(req, res) {
   try {
     const dhaka = getDhakaNow();
-    const month = req.query.month ? parseInt(req.query.month) : dhaka.getMonth() + 1;
+    const month = req.query.month ? parseInt(req.query.month) : dhaka.getMonth();
     const year  = req.query.year  ? parseInt(req.query.year)  : dhaka.getFullYear();
 
     if (isNaN(month) || month < 1 || month > 12) {

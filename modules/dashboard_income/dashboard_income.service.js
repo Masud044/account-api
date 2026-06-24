@@ -5,14 +5,11 @@ export async function getIncomeTotal({ month, year }) {
   const dateParam = `${mm}-${year}`;
 
   const sql = `
-    SELECT
-      SUM(L.CREDIT) AS INCOME_TOTAL
-    FROM
-      GLMASTER H
-      JOIN GLDETAILS L ON H.ID = L.GLMASTERID
-      JOIN CHART_OF_ACCOUNT C ON C.ACCOUNT_ID = L.CODE
-    WHERE
-      H.GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
+    SELECT SUM(L.CREDIT) AS INCOME_TOTAL
+    FROM GLMASTER H
+    JOIN GLDETAILS L ON H.ID = L.GLMASTERID
+    JOIN CHART_OF_ACCOUNT C ON C.ACCOUNT_ID = L.CODE
+    WHERE H.GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
       AND H.GL_ENTRY_DATE < ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
       AND H.VOUCHER_TYPE = 1
       AND H.POSTED = 0
@@ -21,18 +18,15 @@ export async function getIncomeTotal({ month, year }) {
   return withConnection(async (conn) => {
     const result = await conn.execute(sql, { date_bv: dateParam }, { outFormat: 4002 });
     const row = result.rows?.[0];
-    const incomeTotal = row?.INCOME_TOTAL != null ? Number(row.INCOME_TOTAL) : 0;
-
     return {
       date_range: dateParam,
       voucher_type: 1,
-      total_income: incomeTotal,
+      total_income: row?.INCOME_TOTAL != null ? Number(row.INCOME_TOTAL) : 0,
     };
   });
 }
 
-// month বা year যেকোনো একটা থাকলেও filter করতে হবে
-export async function getIncomeBreakdown({ month, year } = {}) {
+export async function getIncomeBreakdown({ month, year, date } = {}) {
   let sql = `
     SELECT DESCRIPTION, SUM(DEBIT) AS AMT, GL_ENTRY_DATE
     FROM GLDATA
@@ -41,8 +35,11 @@ export async function getIncomeBreakdown({ month, year } = {}) {
 
   const binds = {};
 
-  if (month && year) {
-    // দুইটাই আছে — নির্দিষ্ট month+year
+  if (date) {
+    // specific date
+    binds.exact_date = date;
+    sql += ` AND TRUNC(GL_ENTRY_DATE) = TO_DATE(:exact_date, 'YYYY-MM-DD') `;
+  } else if (month && year) {
     const mm = String(month).padStart(2, "0");
     binds.date_bv = `${mm}-${year}`;
     sql += `
@@ -50,7 +47,6 @@ export async function getIncomeBreakdown({ month, year } = {}) {
       AND GL_ENTRY_DATE < ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
     `;
   } else if (year) {
-    // শুধু year — সেই বছরের সব মাস
     binds.year_start = `01-${year}`;
     binds.year_end   = `01-${year + 1}`;
     sql += `
@@ -58,11 +54,9 @@ export async function getIncomeBreakdown({ month, year } = {}) {
       AND GL_ENTRY_DATE < TO_DATE(:year_end, 'MM-YYYY')
     `;
   } else if (month) {
-    // শুধু month — সব বছরের সেই month
     sql += ` AND EXTRACT(MONTH FROM GL_ENTRY_DATE) = :month_bv `;
     binds.month_bv = month;
   }
-  // দুইটাই নেই → সব data
 
   sql += ` GROUP BY DESCRIPTION, GL_ENTRY_DATE ORDER BY GL_ENTRY_DATE `;
 

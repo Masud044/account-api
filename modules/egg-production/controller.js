@@ -9,17 +9,17 @@ export const create = async (req, res) => {
   }
 };
 
-export const update = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await eggProductionService.updateEggProduction(Number(id), req.body);
-    if (result.rowsAffected === 0)
-      return res.status(404).json({ success: false, message: 'Egg production record not found.' });
-    res.json({ success: true, data: result });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+// export const update = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const result = await eggProductionService.updateEggProduction(Number(id), req.body);
+//     if (result.rowsAffected === 0)
+//       return res.status(404).json({ success: false, message: 'Egg production record not found.' });
+//     res.json({ success: true, data: result });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 
 // export const getAll = async (req, res) => {
 //   try {
@@ -37,6 +37,24 @@ export const update = async (req, res) => {
 //     res.status(500).json({ success: false, message: err.message });
 //   }
 // };
+
+export const update = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await eggProductionService.updateEggProduction(Number(id), req.body);
+    if (result.rowsAffected === 0)
+      return res.status(404).json({ success: false, message: 'Record not found.' });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    if (err.message.includes('already exists')) {
+      return res.status(409).json({ success: false, message: err.message });
+    }
+    if (err.message.includes('ORA-00001') || err.message.includes('unique constraint')) {
+      return res.status(409).json({ success: false, message: 'A record for this date already exists.' });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 export const getAll = async (req, res) => {
   try {

@@ -27,30 +27,70 @@ export const createEggProduction = async (data) => {
 };
 
 // ─── UPDATE ───────────────────────────────────────────────────────────────────
+// export const updateEggProduction = async (id, data) => {
+//   const conn = await getConnection();
+//   try {
+//     const sql = `
+//       UPDATE EGG_PRODUCTION SET
+//         PRODUCTION_DATE = TO_DATE(:productionDate, 'YYYY-MM-DD'),
+//         QTY             = :qty,
+//         UPDATED_BY      = :updatedBy,
+//         UPDATE_DATE     = SYSDATE
+//       WHERE ID = :id
+//     `;
+//     const binds = {
+//       id,
+//       productionDate: data.productionDate,
+//       qty:            data.qty,
+//       updatedBy:      data.updatedBy,
+//     };
+//     const result = await conn.execute(sql, binds, { autoCommit: true, outFormat: oracledb.OUT_FORMAT_OBJECT });
+//     return { rowsAffected: result.rowsAffected };
+//   } finally {
+//     await conn.close();
+//   }
+// };
 export const updateEggProduction = async (id, data) => {
   const conn = await getConnection();
   try {
-    const sql = `
-      UPDATE EGG_PRODUCTION SET
-        PRODUCTION_DATE = TO_DATE(:productionDate, 'YYYY-MM-DD'),
-        QTY             = :qty,
-        UPDATED_BY      = :updatedBy,
-        UPDATE_DATE     = SYSDATE
-      WHERE ID = :id
-    `;
-    const binds = {
-      id,
-      productionDate: data.productionDate,
-      qty:            data.qty,
-      updatedBy:      data.updatedBy,
-    };
-    const result = await conn.execute(sql, binds, { autoCommit: true, outFormat: oracledb.OUT_FORMAT_OBJECT });
+    // ✅ Duplicate date check — same record বাদ দিয়ে
+    const checkResult = await conn.execute(
+      `SELECT COUNT(*) AS CNT
+       FROM EGG_PRODUCTION
+       WHERE TRUNC(PRODUCTION_DATE) = TO_DATE(:productionDate, 'YYYY-MM-DD')
+         AND ID != :id`,
+      { productionDate: data.productionDate, id: Number(id) },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    const cnt = Number(checkResult.rows[0]?.CNT ?? 0);
+    if (cnt > 0) {
+      throw new Error(`A record for date ${data.productionDate} already exists.`);
+    }
+
+    // ✅ UPDATED_BY — NUMBER column, তাই null বা number পাঠাতে হবে
+    const updatedBy = data.updatedBy ? Number(data.updatedBy) : null;
+
+    const result = await conn.execute(
+      `UPDATE EGG_PRODUCTION SET
+         PRODUCTION_DATE = TO_DATE(:productionDate, 'YYYY-MM-DD'),
+         QTY             = :qty,
+         UPDATED_BY      = :updatedBy,
+         UPDATE_DATE     = SYSDATE
+       WHERE ID = :id`,
+      {
+        id:             Number(id),
+        productionDate: data.productionDate,
+        qty:            Number(data.qty),
+        updatedBy:      updatedBy,
+      },
+      { autoCommit: true, outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
     return { rowsAffected: result.rowsAffected };
   } finally {
     await conn.close();
   }
 };
-
 // ─── GET ALL (paginated) ──────────────────────────────────────────────────────
 // export const getAllEggProduction = async ({ page = 1, limit = 20 } = {}) => {
 //   const conn = await getConnection();

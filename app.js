@@ -69,6 +69,7 @@ import saleExpenseReportRoute from "./modules/sale-expense-report/route.js";
 
 
 import eggProductionRoutes from "./modules/egg-production/route.js";
+import salInvoiceRouter from "./modules/sale-invoice/route.js";
 
 
 
@@ -166,6 +167,8 @@ app.use("/api/customer", customerInfoRoutes);
 
 app.use("/api/gldoc", gldocRouter);
 app.use("/api/egg-production", eggProductionRoutes);
+
+app.use('/api/sal-invoice', salInvoiceRouter);
 
 
 

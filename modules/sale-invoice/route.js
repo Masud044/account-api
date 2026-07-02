@@ -7,5 +7,6 @@ router.get('/',     invoiceController.getAll);
 router.post('/',    invoiceController.create);
 router.get('/:hid', invoiceController.getSingle);
 router.delete('/:hid', invoiceController.remove);
+router.put('/:hid', invoiceController.update);
 
 export default router;

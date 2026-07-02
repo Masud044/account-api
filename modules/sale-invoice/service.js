@@ -185,3 +185,127 @@ export const deleteInvoice = async (hid) => {
     await conn.close();
   }
 };
+
+
+// ─── UPDATE INVOICE (diff-based upsert: update unchanged, insert new, delete removed) ──
+export const updateInvoice = async (hid, data) => {
+  // data: { customerId, invoiceDate, updatedBy, lines: [{ productionId, productionQty, price }] }
+  const conn = await getConnection();
+  try {
+    const totQty = data.lines.reduce((s, l) => s + Number(l.productionQty || 0), 0);
+    const totAmt = data.lines.reduce((s, l) => s + Number(l.productionQty || 0) * Number(l.price || 0), 0);
+
+    // 1. Update header (proper UPDATED_BY / UPDATED_DATE audit trail)
+    const hResult = await conn.execute(
+      `UPDATE SAL_INVOICE_H
+         SET INVOICE_DATE = TO_DATE(:invoiceDate, 'YYYY-MM-DD'),
+             TOT_QTY       = :totQty,
+             TOT_AMT       = :totAmt,
+             CUSTOMER_ID   = :customerId,
+             UPDATED_BY    = :updatedBy,
+             UPDATED_DATE  = SYSDATE
+       WHERE HID = :hid`,
+      {
+        invoiceDate: data.invoiceDate,
+        totQty,
+        totAmt,
+        customerId: data.customerId,
+        updatedBy:  data.updatedBy ?? null,
+        hid,
+      },
+      { autoCommit: false }
+    );
+    if (hResult.rowsAffected === 0) throw new Error('Invoice not found.');
+
+    // 2. Fetch existing lines + details for this invoice
+    const existingResult = await conn.execute(
+      `SELECT l.LID, l.PRODUTION_ID, d.DID
+         FROM SAL_INVOICE_L l
+         LEFT JOIN SAL_INVOICE_D d ON l.LID = d.LID
+        WHERE l.HID = :hid`,
+      { hid },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    const existingByProdId = new Map(
+      existingResult.rows.map((r) => [String(r.PRODUTION_ID), r])
+    );
+    const incomingProdIds = new Set(data.lines.map((l) => String(l.productionId)));
+
+    // 3. Delete lines that were removed by the user
+    for (const row of existingResult.rows) {
+      if (!incomingProdIds.has(String(row.PRODUTION_ID))) {
+        if (row.DID) {
+          await conn.execute(
+            `DELETE FROM SAL_INVOICE_D WHERE DID = :did`,
+            { did: row.DID },
+            { autoCommit: false }
+          );
+        }
+        await conn.execute(
+          `DELETE FROM SAL_INVOICE_L WHERE LID = :lid`,
+          { lid: row.LID },
+          { autoCommit: false }
+        );
+      }
+    }
+
+    // 4. Upsert incoming lines — update if unchanged production, insert if new
+    for (const line of data.lines) {
+      const existing = existingByProdId.get(String(line.productionId));
+
+      if (existing) {
+        // Same production date as before → keep LID/DID, just update qty/price
+        await conn.execute(
+          `UPDATE SAL_INVOICE_D
+             SET PRODUCTION_QTY = :productionQty,
+                 PRICE          = :price,
+                 UPDATED_BY     = :updatedBy,
+                 UPDATED_DATE   = SYSDATE
+           WHERE LID = :lid`,
+          {
+            productionQty: Number(line.productionQty),
+            price:         Number(line.price),
+            updatedBy:     data.updatedBy ?? null,
+            lid:           existing.LID,
+          },
+          { autoCommit: false }
+        );
+      } else {
+        // New production date → insert fresh L + D
+        const insL = await conn.execute(
+          `INSERT INTO SAL_INVOICE_L (HID, PRODUTION_ID)
+           VALUES (:hid, :productionId)
+           RETURNING LID INTO :outLid`,
+          {
+            hid,
+            productionId: line.productionId,
+            outLid: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+          },
+          { autoCommit: false }
+        );
+        const lid = insL.outBinds.outLid[0];
+
+        await conn.execute(
+          `INSERT INTO SAL_INVOICE_D (LID, PRODUCTION_QTY, PRICE, CREATION_BY, CREATION_DATE)
+           VALUES (:lid, :productionQty, :price, :creationBy, SYSDATE)`,
+          {
+            lid,
+            productionQty: Number(line.productionQty),
+            price:         Number(line.price),
+            creationBy:    data.updatedBy ?? null,
+          },
+          { autoCommit: false }
+        );
+      }
+    }
+
+    await conn.commit();
+    return { hid, totQty, totAmt };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};

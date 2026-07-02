@@ -44,3 +44,16 @@ export const remove = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+export const update = async (req, res) => {
+  try {
+    const { hid } = req.params;
+    const result = await invoiceService.updateInvoice(Number(hid), {
+      ...req.body,
+      updatedBy: req.user?.id ?? null, // auth থাকলে logged-in user id বসবে
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

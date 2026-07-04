@@ -71,7 +71,7 @@ import saleExpenseReportRoute from "./modules/sale-expense-report/route.js";
 import eggProductionRoutes from "./modules/egg-production/route.js";
 import salInvoiceRouter from "./modules/sale-invoice/route.js";
 
-
+import purchaserRoutes from "./modules/purchaser-recognition/route.js"
 
 
 
@@ -169,6 +169,7 @@ app.use("/api/gldoc", gldocRouter);
 app.use("/api/egg-production", eggProductionRoutes);
 
 app.use('/api/sal-invoice', salInvoiceRouter);
+app.use('/api/purchase-recognition', purchaserRoutes);
 
 
 

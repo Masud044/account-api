@@ -57,3 +57,26 @@ export const update = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+
+// GET /api/sal-invoice/dashboard/breakdown
+export const dashboardBreakdown = async (req, res) => {
+  try {
+    const { date, month, year } = req.query;
+    const result = await invoiceService.getInvoiceDashboardData({ date, month, year });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/sal-invoice/dashboard/monthly-summary
+export const dashboardMonthlySummary = async (req, res) => {
+  try {
+    const { year } = req.query;
+    const rows = await invoiceService.getInvoiceMonthlySummary(year);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

@@ -3,6 +3,9 @@ import * as invoiceController from './controller.js';
 
 const router = express.Router();
 
+router.get('/dashboard/breakdown',       invoiceController.dashboardBreakdown);
+router.get('/dashboard/monthly-summary', invoiceController.dashboardMonthlySummary);
+
 router.get('/',     invoiceController.getAll);
 router.post('/',    invoiceController.create);
 router.get('/:hid', invoiceController.getSingle);

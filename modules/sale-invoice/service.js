@@ -724,3 +724,88 @@ export const updateInvoice = async (hid, data) => {
     await conn.close();
   }
 };
+
+
+// ─── DASHBOARD: Invoice breakdown (date/month/year filter) ───────────────────
+export const getInvoiceDashboardData = async (filters = {}) => {
+  const conn = await getConnection();
+  try {
+    let whereClause = '';
+    const binds = {};
+
+    if (filters.date) {
+      whereClause = `WHERE TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') = :date`;
+      binds.date = filters.date;
+    } else {
+      const conditions = [];
+      if (filters.month) {
+        conditions.push(`EXTRACT(MONTH FROM h.INVOICE_DATE) = :month`);
+        binds.month = Number(filters.month);
+      }
+      if (filters.year) {
+        conditions.push(`EXTRACT(YEAR FROM h.INVOICE_DATE) = :year`);
+        binds.year = Number(filters.year);
+      }
+      if (conditions.length) whereClause = `WHERE ${conditions.join(' AND ')}`;
+    }
+
+    const rowsResult = await conn.execute(
+      `SELECT
+         TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
+         NVL(c.CUSTOMER_NAME, 'Unknown')        AS DESCRIPTION,
+         h.TOT_AMT                              AS AMT
+       FROM SAL_INVOICE_H h
+       LEFT JOIN CUSTOMER_INFO c ON h.CUSTOMER_ID = c.CUSTOMER_ID
+       ${whereClause}
+       ORDER BY h.INVOICE_DATE DESC`,
+      binds,
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    const totalResult = await conn.execute(
+      `SELECT NVL(SUM(h.TOT_AMT), 0) AS TOTAL
+       FROM SAL_INVOICE_H h
+       ${whereClause}`,
+      binds,
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    return {
+      rows:  rowsResult.rows,
+      total: totalResult.rows[0]?.TOTAL ?? 0,
+    };
+  } finally {
+    await conn.close();
+  }
+};
+
+// ─── DASHBOARD: Monthly invoice summary (for chart) ──────────────────────────
+export const getInvoiceMonthlySummary = async (year) => {
+  const conn = await getConnection();
+  try {
+    const binds = {};
+    let whereClause = '';
+    if (year) {
+      whereClause = `WHERE EXTRACT(YEAR FROM INVOICE_DATE) = :year`;
+      binds.year = Number(year);
+    }
+
+    const result = await conn.execute(
+      `SELECT
+         TO_CHAR(INVOICE_DATE, 'YYYY-MM') AS MONTH,
+         SUM(TOT_AMT)                     AS TOTAL_AMT,
+         SUM(TOT_QTY)                     AS TOTAL_QTY,
+         COUNT(*)                         AS INVOICE_COUNT
+       FROM SAL_INVOICE_H
+       ${whereClause}
+       GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM')
+       ORDER BY MONTH ASC`,
+      binds,
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    return result.rows;
+  } finally {
+    await conn.close();
+  }
+};

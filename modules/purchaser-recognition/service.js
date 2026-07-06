@@ -481,33 +481,62 @@ export const createPurchaseRecognition = async (data) => {
     );
 
     // 1. Insert Header
+    // await conn.execute(
+    //   `INSERT INTO PURCHASE_RECOGNITION_H (
+    //     FORM_ID, RECOGNITION_DATE, PO_NUMBER, INVOICE_NUMBER,
+    //     DEPARTMENT, REQUESTED_BY, SUPPLIER_ID, VENDOR_NAME, CONTACT_PERSON,
+    //     COST_CENTER_CODE, INVOICE_DATE, DESCRIPTION, CREATED_BY, CREATION_DATE
+    //   ) VALUES (
+    //     :formId, TO_DATE(:recognitionDate,'YYYY-MM-DD'), :poNumber, :invoiceNumber,
+    //     :department, :requestedBy, :supplierId, :vendorName, :contactPerson,
+    //     :costCenterCode, TO_DATE(:invoiceDate,'YYYY-MM-DD'), :description, :createdBy, SYSDATE
+    //   )`,
+    //   {
+    //     formId,
+    //     recognitionDate: data.header.recognitionDate,
+    //     poNumber,
+    //     invoiceNumber:   data.header.invoiceNumber ?? null,
+    //     department:      data.header.department ?? null,
+    //     requestedBy:     data.header.requestedBy ?? null,
+    //     supplierId:      data.header.supplierId ?? null,
+    //     vendorName:      data.header.vendorName ?? null,
+    //     contactPerson:   data.header.contactPerson ?? null,
+    //     costCenterCode:  data.header.costCenterCode ?? null,
+    //     invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
+    //     description:     data.header.description ?? null,
+    //     createdBy:       data.createdBy ?? null,
+    //   },
+    //   { autoCommit: false }
+    // );
+
     await conn.execute(
-      `INSERT INTO PURCHASE_RECOGNITION_H (
-        FORM_ID, RECOGNITION_DATE, PO_NUMBER, INVOICE_NUMBER,
-        DEPARTMENT, REQUESTED_BY, SUPPLIER_ID, VENDOR_NAME, CONTACT_PERSON,
-        COST_CENTER_CODE, INVOICE_DATE, DESCRIPTION, CREATED_BY, CREATION_DATE
-      ) VALUES (
-        :formId, TO_DATE(:recognitionDate,'YYYY-MM-DD'), :poNumber, :invoiceNumber,
-        :department, :requestedBy, :supplierId, :vendorName, :contactPerson,
-        :costCenterCode, TO_DATE(:invoiceDate,'YYYY-MM-DD'), :description, :createdBy, SYSDATE
-      )`,
-      {
-        formId,
-        recognitionDate: data.header.recognitionDate,
-        poNumber,
-        invoiceNumber:   data.header.invoiceNumber ?? null,
-        department:      data.header.department ?? null,
-        requestedBy:     data.header.requestedBy ?? null,
-        supplierId:      data.header.supplierId ?? null,
-        vendorName:      data.header.vendorName ?? null,
-        contactPerson:   data.header.contactPerson ?? null,
-        costCenterCode:  data.header.costCenterCode ?? null,
-        invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
-        description:     data.header.description ?? null,
-        createdBy:       data.createdBy ?? null,
-      },
-      { autoCommit: false }
-    );
+  `INSERT INTO PURCHASE_RECOGNITION_H (
+    FORM_ID, RECOGNITION_DATE, PO_NUMBER, INVOICE_NUMBER,
+    DEPARTMENT, REQUESTED_BY, SUPPLIER_ID, VENDOR_NAME, CONTACT_PERSON,
+    COST_CENTER_CODE, INVOICE_DATE, DESCRIPTION, PURCHASE_TYPE, CREATED_BY, CREATION_DATE
+  ) VALUES (
+    :formId, TO_DATE(:recognitionDate,'YYYY-MM-DD'), :poNumber, :invoiceNumber,
+    :department, :requestedBy, :supplierId, :vendorName, :contactPerson,
+    :costCenterCode, TO_DATE(:invoiceDate,'YYYY-MM-DD'), :description, :purchaseType, :createdBy, SYSDATE
+  )`,
+  {
+    formId,
+    recognitionDate: data.header.recognitionDate,
+    poNumber,
+    invoiceNumber:   data.header.invoiceNumber ?? null,
+    department:      data.header.department ?? null,
+    requestedBy:     data.header.requestedBy ?? null,
+    supplierId:      data.header.supplierId ?? null,
+    vendorName:      data.header.vendorName ?? null,
+    contactPerson:   data.header.contactPerson ?? null,
+    costCenterCode:  data.header.costCenterCode ?? null,
+    invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
+    description:     data.header.description ?? null,
+    purchaseType:    data.header.purchaseType ?? 'ITEM',   // 👈 নতুন
+    createdBy:       data.createdBy ?? null,
+  },
+  { autoCommit: false }
+);
 
     // 2. Insert Line Items
     for (const item of resolvedItems) {
@@ -575,6 +604,7 @@ export const getAllPurchaseRecognitions = async () => {
         h.VENDOR_NAME,
         h.SUPPLIER_ID,
         h.DESCRIPTION,
+        h.PURCHASE_TYPE,
         h.CREATION_DATE,
         (SELECT COUNT(*) FROM PURCHASE_RECOGNITION_D d WHERE d.FORM_ID = h.FORM_ID) AS ITEM_COUNT,
         (SELECT NVL(SUM(TOTAL_PRICE),0) FROM PURCHASE_RECOGNITION_D d WHERE d.FORM_ID = h.FORM_ID) AS TOTAL_AMOUNT,
@@ -624,37 +654,71 @@ export const updatePurchaseRecognition = async (formId, data) => {
   // data: { header: {...}, items: [...], updatedBy }
   const conn = await getConnection();
   try {
+    // const hResult = await conn.execute(
+    //   `UPDATE PURCHASE_RECOGNITION_H
+    //      SET RECOGNITION_DATE = TO_DATE(:recognitionDate,'YYYY-MM-DD'),
+    //          INVOICE_NUMBER   = :invoiceNumber,
+    //          DEPARTMENT       = :department,
+    //          REQUESTED_BY     = :requestedBy,
+    //          SUPPLIER_ID      = :supplierId,
+    //          VENDOR_NAME      = :vendorName,
+    //          CONTACT_PERSON   = :contactPerson,
+    //          COST_CENTER_CODE = :costCenterCode,
+    //          INVOICE_DATE     = TO_DATE(:invoiceDate,'YYYY-MM-DD'),
+    //          DESCRIPTION      = :description,
+    //          UPDATED_BY       = :updatedBy,
+    //          UPDATED_DATE     = SYSDATE
+    //    WHERE FORM_ID = :formId`,
+    //   {
+    //     recognitionDate: data.header.recognitionDate,
+    //     invoiceNumber:   data.header.invoiceNumber ?? null,
+    //     department:      data.header.department ?? null,
+    //     requestedBy:     data.header.requestedBy ?? null,
+    //     supplierId:      data.header.supplierId ?? null,
+    //     vendorName:      data.header.vendorName ?? null,
+    //     contactPerson:   data.header.contactPerson ?? null,
+    //     costCenterCode:  data.header.costCenterCode ?? null,
+    //     invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
+    //     description:     data.header.description ?? null,
+    //     updatedBy:       data.updatedBy ?? null,
+    //     formId,
+    //   },
+    //   { autoCommit: false }
+    // );
+
     const hResult = await conn.execute(
-      `UPDATE PURCHASE_RECOGNITION_H
-         SET RECOGNITION_DATE = TO_DATE(:recognitionDate,'YYYY-MM-DD'),
-             INVOICE_NUMBER   = :invoiceNumber,
-             DEPARTMENT       = :department,
-             REQUESTED_BY     = :requestedBy,
-             SUPPLIER_ID      = :supplierId,
-             VENDOR_NAME      = :vendorName,
-             CONTACT_PERSON   = :contactPerson,
-             COST_CENTER_CODE = :costCenterCode,
-             INVOICE_DATE     = TO_DATE(:invoiceDate,'YYYY-MM-DD'),
-             DESCRIPTION      = :description,
-             UPDATED_BY       = :updatedBy,
-             UPDATED_DATE     = SYSDATE
-       WHERE FORM_ID = :formId`,
-      {
-        recognitionDate: data.header.recognitionDate,
-        invoiceNumber:   data.header.invoiceNumber ?? null,
-        department:      data.header.department ?? null,
-        requestedBy:     data.header.requestedBy ?? null,
-        supplierId:      data.header.supplierId ?? null,
-        vendorName:      data.header.vendorName ?? null,
-        contactPerson:   data.header.contactPerson ?? null,
-        costCenterCode:  data.header.costCenterCode ?? null,
-        invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
-        description:     data.header.description ?? null,
-        updatedBy:       data.updatedBy ?? null,
-        formId,
-      },
-      { autoCommit: false }
-    );
+  `UPDATE PURCHASE_RECOGNITION_H
+     SET RECOGNITION_DATE = TO_DATE(:recognitionDate,'YYYY-MM-DD'),
+         INVOICE_NUMBER   = :invoiceNumber,
+         DEPARTMENT       = :department,
+         REQUESTED_BY     = :requestedBy,
+         SUPPLIER_ID      = :supplierId,
+         VENDOR_NAME      = :vendorName,
+         CONTACT_PERSON   = :contactPerson,
+         COST_CENTER_CODE = :costCenterCode,
+         INVOICE_DATE     = TO_DATE(:invoiceDate,'YYYY-MM-DD'),
+         DESCRIPTION      = :description,
+         PURCHASE_TYPE    = :purchaseType,
+         UPDATED_BY       = :updatedBy,
+         UPDATED_DATE     = SYSDATE
+   WHERE FORM_ID = :formId`,
+  {
+    recognitionDate: data.header.recognitionDate,
+    invoiceNumber:   data.header.invoiceNumber ?? null,
+    department:      data.header.department ?? null,
+    requestedBy:     data.header.requestedBy ?? null,
+    supplierId:      data.header.supplierId ?? null,
+    vendorName:      data.header.vendorName ?? null,
+    contactPerson:   data.header.contactPerson ?? null,
+    costCenterCode:  data.header.costCenterCode ?? null,
+    invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
+    description:     data.header.description ?? null,
+    purchaseType:    data.header.purchaseType ?? 'ITEM',   // 👈 নতুন
+    updatedBy:       data.updatedBy ?? null,
+    formId,
+  },
+  { autoCommit: false }
+);
     if (hResult.rowsAffected === 0) throw new Error('Purchase recognition form not found.');
 
     await conn.execute(

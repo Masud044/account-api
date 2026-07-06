@@ -80,3 +80,14 @@ export const dashboardMonthlySummary = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// GET /api/sal-invoice/dashboard/daily-summary
+export const dashboardDailySummary = async (req, res) => {
+  try {
+    const { month, year } = req.query;
+    const rows = await invoiceService.getInvoiceDailySummary(month, year);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

@@ -809,3 +809,41 @@ export const getInvoiceMonthlySummary = async (year) => {
     await conn.close();
   }
 };
+
+
+// ─── DASHBOARD: Daily invoice summary (for chart) ────────────────────────────
+export const getInvoiceDailySummary = async (month, year) => {
+  const conn = await getConnection();
+  try {
+    const binds = {};
+    const conditions = [];
+
+    if (month) {
+      conditions.push(`EXTRACT(MONTH FROM INVOICE_DATE) = :month`);
+      binds.month = Number(month);
+    }
+    if (year) {
+      conditions.push(`EXTRACT(YEAR FROM INVOICE_DATE) = :year`);
+      binds.year = Number(year);
+    }
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const result = await conn.execute(
+      `SELECT
+         TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD') AS DAY,
+         SUM(TOT_AMT)                        AS TOTAL_AMT,
+         SUM(TOT_QTY)                        AS TOTAL_QTY,
+         COUNT(*)                            AS INVOICE_COUNT
+       FROM SAL_INVOICE_H
+       ${whereClause}
+       GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD')
+       ORDER BY DAY ASC`,
+      binds,
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    return result.rows;
+  } finally {
+    await conn.close();
+  }
+};

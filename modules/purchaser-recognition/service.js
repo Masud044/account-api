@@ -414,6 +414,27 @@ const generatePoNumber = async (conn, recognitionDate) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// Helper: generate INVOICE_NUMBER (format: YYYYMMNNN, resets every month)
+// e.g. 202607085
+// ═══════════════════════════════════════════════════════════════
+const generateInvoiceNumber = async (conn, recognitionDate) => {
+  const d = new Date(recognitionDate);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const yearMonth = `${year}${month}`; // 6 chars, e.g. 202607
+
+  const seqResult = await conn.execute(
+    `SELECT MAX(TO_NUMBER(SUBSTR(INVOICE_NUMBER, -3, 3))) V_NO
+       FROM PURCHASE_RECOGNITION_H
+      WHERE SUBSTR(INVOICE_NUMBER, 1, 6) = :yearMonth`,
+    { yearMonth },
+    { outFormat: oracledb.OUT_FORMAT_OBJECT }
+  );
+  const nextSeq = String((Number(seqResult.rows[0]?.V_NO || 0) + 1)).padStart(3, '0');
+  return `${yearMonth}${nextSeq}`;
+};
+
+// ═══════════════════════════════════════════════════════════════
 // Helper: resolve item details by ID from the ITEM table
 // Table: ITEM(ID, NAME, DESCRIPTION, PRICE)
 // ═══════════════════════════════════════════════════════════════
@@ -463,7 +484,8 @@ export const createPurchaseRecognition = async (data) => {
   const conn = await getConnection();
   try {
     const formId = await generateFormId(conn, data.header.recognitionDate);
-    const poNumber = await generatePoNumber(conn, data.header.recognitionDate);
+const poNumber = await generatePoNumber(conn, data.header.recognitionDate);
+const invoiceNumber = await generateInvoiceNumber(conn, data.header.recognitionDate);   // 👈 নতুন
 
     // Resolve item master details (name / description / price) for each line
     const resolvedItems = [];
@@ -509,7 +531,7 @@ export const createPurchaseRecognition = async (data) => {
     //   { autoCommit: false }
     // );
 
-    await conn.execute(
+   await conn.execute(
   `INSERT INTO PURCHASE_RECOGNITION_H (
     FORM_ID, RECOGNITION_DATE, PO_NUMBER, INVOICE_NUMBER,
     DEPARTMENT, REQUESTED_BY, SUPPLIER_ID, VENDOR_NAME, CONTACT_PERSON,
@@ -523,7 +545,7 @@ export const createPurchaseRecognition = async (data) => {
     formId,
     recognitionDate: data.header.recognitionDate,
     poNumber,
-    invoiceNumber:   data.header.invoiceNumber ?? null,
+    invoiceNumber,   // 👈 এখন auto-generated (আগের data.header.invoiceNumber বাদ)
     department:      data.header.department ?? null,
     requestedBy:     data.header.requestedBy ?? null,
     supplierId:      data.header.supplierId ?? null,
@@ -532,7 +554,7 @@ export const createPurchaseRecognition = async (data) => {
     costCenterCode:  data.header.costCenterCode ?? null,
     invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
     description:     data.header.description ?? null,
-    purchaseType:    data.header.purchaseType ?? 'ITEM',   // 👈 নতুন
+    purchaseType:    data.header.purchaseType ?? 'ITEM',
     createdBy:       data.createdBy ?? null,
   },
   { autoCommit: false }
@@ -580,8 +602,8 @@ export const createPurchaseRecognition = async (data) => {
       { autoCommit: false }
     );
 
-    await conn.commit();
-    return { formId, poNumber, totalAmount };
+   await conn.commit();
+return { formId, poNumber, invoiceNumber, totalAmount };   
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -689,7 +711,6 @@ export const updatePurchaseRecognition = async (formId, data) => {
     const hResult = await conn.execute(
   `UPDATE PURCHASE_RECOGNITION_H
      SET RECOGNITION_DATE = TO_DATE(:recognitionDate,'YYYY-MM-DD'),
-         INVOICE_NUMBER   = :invoiceNumber,
          DEPARTMENT       = :department,
          REQUESTED_BY     = :requestedBy,
          SUPPLIER_ID      = :supplierId,
@@ -704,7 +725,6 @@ export const updatePurchaseRecognition = async (formId, data) => {
    WHERE FORM_ID = :formId`,
   {
     recognitionDate: data.header.recognitionDate,
-    invoiceNumber:   data.header.invoiceNumber ?? null,
     department:      data.header.department ?? null,
     requestedBy:     data.header.requestedBy ?? null,
     supplierId:      data.header.supplierId ?? null,
@@ -713,7 +733,7 @@ export const updatePurchaseRecognition = async (formId, data) => {
     costCenterCode:  data.header.costCenterCode ?? null,
     invoiceDate:     data.header.invoiceDate ?? data.header.recognitionDate,
     description:     data.header.description ?? null,
-    purchaseType:    data.header.purchaseType ?? 'ITEM',   // 👈 নতুন
+    purchaseType:    data.header.purchaseType ?? 'ITEM',
     updatedBy:       data.updatedBy ?? null,
     formId,
   },

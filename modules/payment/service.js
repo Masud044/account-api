@@ -111,6 +111,72 @@ export async function searchPayment(id) {
   });
 }
 
+// export async function insertPayment(input) {
+//   return withConnection(async (connection) => {
+//     try {
+//       const seqResult = await connection.execute(
+//         "SELECT SUBSTR(voucherno,-3,3) V_NO FROM GLMASTER WHERE voucher_type=2 ORDER BY id DESC FETCH FIRST 1 ROWS ONLY",
+//         {},
+//         { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//       );
+//       const next = String((Number(seqResult.rows[0]?.V_NO || 0) + 1)).padStart(3, "0");
+//       const [year, month] = String(input.trans_date).split("-");
+//       const voucherNo = `${year}${month}${next}`;
+
+//       await connection.execute(
+//         `INSERT INTO GLMASTER (trans_date, voucher_type, description, supporting, voucherno, cashaccount, customer_id, gl_entry_date, posted,  inv_type)
+//          VALUES(TO_DATE(:tdate,'MM-DD-YYYY'),2,:des,:sup,:vno,:cash,:cust,TO_DATE(:gld,'MM-DD-YYYY'),0, :invtype)`,
+//         {
+//           tdate: toMmDdYyyy(input.trans_date),
+//           des:   input.receive_desc,
+//           sup:   input.supporting,
+//           vno:   voucherNo,
+//           cash:  input.receive,
+//           cust:  input.supplierid,
+//           gld:   toMmDdYyyy(input.gl_date),
+//            invtype: input.inv_type ?? null, 
+//         },
+//         { autoCommit: false }
+//       );
+
+//       const idResult = await connection.execute(
+//         "SELECT MAX(id) ID FROM GLMASTER",
+//         {},
+//         { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//       );
+//       const masterID = idResult.rows[0].ID;
+
+//       // Credit row (payment account)
+//       await connection.execute(
+//         "INSERT INTO GLDETAILS (glmasterid, code, credit) VALUES(:mid,:code,:amt)",
+//         { mid: masterID, code: input.receive, amt: input.totalAmount },
+//         { autoCommit: false }
+//       );
+
+//       // Debit rows
+//       for (let i = 0; i < (input.accountID || []).length; i++) {
+//         if (!input.accountID[i]) continue;
+//         await connection.execute(
+//           "INSERT INTO GLDETAILS (glmasterid, code, debit, codedescription, description) VALUES(:mid,:code,:amt,:cdesc,:ds)",
+//           {
+//             mid:   masterID,
+//             code:  input.accountID[i],
+//             amt:   input.amount2?.[i],
+//             cdesc: input.CODEDESCRIPTION?.[i] || "",
+//             ds:    input.DESCRIPTION?.[i] || "",
+//           },
+//           { autoCommit: false }
+//         );
+//       }
+
+//       await connection.commit();
+//       return { masterID, voucherNo };
+//     } catch (error) {
+//       await connection.rollback();
+//       throw error;
+//     }
+//   });
+// }
 export async function insertPayment(input) {
   return withConnection(async (connection) => {
     try {
@@ -124,8 +190,8 @@ export async function insertPayment(input) {
       const voucherNo = `${year}${month}${next}`;
 
       await connection.execute(
-        `INSERT INTO GLMASTER (trans_date, voucher_type, description, supporting, voucherno, cashaccount, customer_id, gl_entry_date, posted,  inv_type)
-         VALUES(TO_DATE(:tdate,'MM-DD-YYYY'),2,:des,:sup,:vno,:cash,:cust,TO_DATE(:gld,'MM-DD-YYYY'),0, :invtype)`,
+        `INSERT INTO GLMASTER (trans_date, voucher_type, description, supporting, voucherno, cashaccount, customer_id, gl_entry_date, posted, inv_type, po_number)
+         VALUES(TO_DATE(:tdate,'MM-DD-YYYY'),2,:des,:sup,:vno,:cash,:cust,TO_DATE(:gld,'MM-DD-YYYY'),0, :invtype, :ponumber)`,
         {
           tdate: toMmDdYyyy(input.trans_date),
           des:   input.receive_desc,
@@ -134,7 +200,8 @@ export async function insertPayment(input) {
           cash:  input.receive,
           cust:  input.supplierid,
           gld:   toMmDdYyyy(input.gl_date),
-           invtype: input.inv_type ?? null, 
+          invtype: input.inv_type ?? null,
+          ponumber: input.po_number ?? null,   // 👈 নতুন
         },
         { autoCommit: false }
       );
@@ -177,35 +244,36 @@ export async function insertPayment(input) {
     }
   });
 }
-
 export async function updatePayment(input) {
   return withConnection(async (connection) => {
     try {
       const uDate = currentMmDdYyyy();
 
       // ── 1. Update GLMASTER ───────────────────────────────────────────────────
-      await connection.execute(
-        `UPDATE GLMASTER
-         SET trans_date     = TO_DATE(:td,'MM-DD-YYYY'),
-             description    = :des,
-             supporting     = :sup,
-             customer_id    = :cust,
-             update_date    = TO_DATE(:ud,'MM-DD-YYYY'),
-             gl_entry_date  = TO_DATE(:gd,'MM-DD-YYYY'),
-              inv_type      = :invtype
-         WHERE id = :id`,
-        {
-          td:   toMmDdYyyy(input.trans_date),
-          des:  input.receive_desc,
-          sup:  input.supporting,
-          cust: input.supplierid,
-          ud:   uDate,
-          gd:   toMmDdYyyy(input.gl_date),
-          id:   input.masterID,
-           invtype: input.inv_type ?? null,    
-        },
-        { autoCommit: false }
-      );
+     await connection.execute(
+  `UPDATE GLMASTER
+   SET trans_date     = TO_DATE(:td,'MM-DD-YYYY'),
+       description    = :des,
+       supporting     = :sup,
+       customer_id    = :cust,
+       update_date    = TO_DATE(:ud,'MM-DD-YYYY'),
+       gl_entry_date  = TO_DATE(:gd,'MM-DD-YYYY'),
+       inv_type       = :invtype,
+       po_number      = :ponumber
+   WHERE id = :id`,
+  {
+    td:   toMmDdYyyy(input.trans_date),
+    des:  input.receive_desc,
+    sup:  input.supporting,
+    cust: input.supplierid,
+    ud:   uDate,
+    gd:   toMmDdYyyy(input.gl_date),
+    id:   input.masterID,
+    invtype: input.inv_type ?? null,
+    ponumber: input.po_number ?? null,   // 👈 নতুন
+  },
+  { autoCommit: false }
+);
 
       // ── 2. Update existing debit rows ────────────────────────────────────────
       for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {

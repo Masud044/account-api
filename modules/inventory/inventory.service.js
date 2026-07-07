@@ -1,301 +1,34 @@
-// import {  getConnection, oracledb } from '../../config/db.js';
-
-// export const createInventory = async (data) => {
-//   const conn = await getConnection();
-//   try {
-//     const sql = `
-//       INSERT INTO INVENTORIES (
-//         INVQTY, GRNNO, PONO, ITEM, PRICE, STOREID,
-//         INVTDATE, INVSTATUS, INVOICE_STATUS, ITEMTYPE, ACCOUNTED,
-//         UNIT, UNIT_PRICE, UNIT_ID, SELLING_UNIT_PRICE, INVENTORY_TYPE
-//       ) VALUES (
-//         :invQty, :grnNo, :poNo, :item, :price, :storeId,
-//         :invtDate, :invStatus, :invoiceStatus, :itemType, :accounted,
-//         :unit, :unitPrice, :unitId, :sellingUnitPrice, :inventoryType
-//       )
-//     `;
-//     const binds = {
-//       invQty:           data.invQty           ?? null,
-//       grnNo:            data.grnNo            ?? null,
-//       poNo:             data.poNo             ?? null,
-//       item:             data.item,
-//       price:            data.price            ?? null,
-//       storeId:          data.storeId,
-//       // ✅ Fix: was data.invDate (typo), now data.invtDate
-//       invtDate:         data.invtDate ? new Date(data.invtDate) : new Date(),
-//       invStatus:        data.invStatus        ?? 1,
-//       invoiceStatus:    data.invoiceStatus    ?? 0,
-//       itemType:         data.itemType         ?? null,
-//       accounted:        data.accounted        ?? null,
-//       unit:             data.unit             ?? null,
-//       // ✅ Fix: unitPrice must be numeric for trigger UNIT_PRICE
-//       unitPrice:        data.unitPrice ? Number(data.unitPrice) : null,
-//       unitId:           data.unitId           ?? null,
-//       sellingUnitPrice: data.sellingUnitPrice ?? null,
-//       inventoryType:    data.inventoryType    ?? null,
-//     };
-//     const result = await conn.execute(sql, binds, { autoCommit: true , outFormat: oracledb.OUT_FORMAT_OBJECT });
-//     return { rowsAffected: result.rowsAffected };
-//   } finally {
-//     await conn.close();
-//   }
-// };
-
-// // ─── UPDATE ───────────────────────────────────────────────────────────────────
-// export const updateInventory = async (tid, data) => {
-//   const conn = await getConnection();
-//   try {
-//     const sql = `
-//       UPDATE INVENTORIES SET
-//         INVQTY             = :invQty,
-//         GRNNO              = :grnNo,
-//         PONO               = :poNo,
-//         ITEM               = :item,
-//         PRICE              = :price,
-//         STOREID            = :storeId,
-//         INVTDATE           = :invtDate,
-//         INVSTATUS          = :invStatus,
-//         INVOICE_STATUS     = :invoiceStatus,
-//         ITEMTYPE           = :itemType,
-//         ACCOUNTED          = :accounted,
-//         UNIT               = :unit,
-//         UNIT_PRICE         = :unitPrice,
-//         UNIT_ID            = :unitId,
-//         SELLING_UNIT_PRICE = :sellingUnitPrice,
-//         INVENTORY_TYPE     = :inventoryType,
-//         UPDATE_DATE        = SYSDATE
-//       WHERE TID = :tid
-//     `;
-   
-// const binds = {
-//   tid,
-//   invQty:           data.invQty           ? Number(data.invQty)           : null,
-//   // ✅ VARCHAR2 column তাই STRING রাখুন, trigger এ TO_NUMBER() করবে
-//   unitPrice:        data.unitPrice != null ? String(data.unitPrice)        : null,
-//   invStatus:        Number(data.invStatus  ?? 1),
-//   invoiceStatus:    Number(data.invoiceStatus ?? 0),
-//   item:             data.item,
-//   storeId:          data.storeId,
-//   grnNo:            data.grnNo            || null,
-//   poNo:             data.poNo             ? Number(data.poNo)             : null,
-//   price:            data.price            ? Number(data.price)            : null,
-//   sellingUnitPrice: data.sellingUnitPrice ? Number(data.sellingUnitPrice) : null,
-//   unit:             data.unit             || null,
-//   unitId:           data.unitId           ? Number(data.unitId)           : null,
-//   inventoryType:    data.inventoryType    ? Number(data.inventoryType)    : null,
-//   itemType:         data.itemType         ? Number(data.itemType)         : null,
-//   accounted:        data.accounted        ? Number(data.accounted)        : null,
-//   invtDate:         data.invtDate         ? new Date(data.invtDate)       : null,
-// };
-//     const result = await conn.execute(sql, binds, { autoCommit: true , outFormat: oracledb.OUT_FORMAT_OBJECT });
-//     return { rowsAffected: result.rowsAffected };
-//   } finally {
-//     await conn.close();
-//   }
-// };
-
-// export const getAllInventories = async ({ page = 1, limit = 20 } = {}) => {
-//   const conn = await getConnection();
-//   try {
-//     const offset = (page - 1) * limit;
-//     const sql = `
-//       SELECT *
-//       FROM (
-//         SELECT
-//           -- INVENTORIES columns
-//           inv.TID,
-//           inv.INVTDATE,
-//           inv.ENTRY_DATE,
-//           inv.UPDATE_DATE,
-//           inv.INVSTATUS,
-//           inv.INVOICE_STATUS,
-//           inv.ITEMTYPE,
-//           inv.ACCOUNTED,
-//           inv.INVQTY,
-//           inv.PONO,
-//           inv.ITEM            AS INV_ITEM_ID,
-//           inv.PRICE           AS INV_PRICE,
-//           inv.STOREID,
-//           inv.SELLING_UNIT_PRICE,
-//           inv.INVENTORY_TYPE,
-//           inv.UNIT_ID         AS INV_UNIT_ID,
-//           inv.UNIT            AS INV_UNIT,
-//           inv.UNIT_PRICE,
-//           inv.GRNNO,
-
-//             -- ✅ STORE JOIN — Store Name 
-//           st.STORE_NAME,
-//           st.LOCATION         AS STORE_LOCATION,
-
-//           -- ✅ UOM JOIN — UOM Name 
-//           uom.NAME            AS UOM_NAME,
-
- 
-//           -- ITEM_STOCK columns
-//           ist.STOCK_QTY,
-//           ist.MINIMUM_LEVEL,
-//           ist.STATUS          AS STOCK_STATUS,
-//           ist.PRICE           AS STOCK_PRICE,
-//           ist.LAST_PRICE,
-//           ist.UOM,
-//           ist.BOOKED,
-//           ist.ENTRY_BY        AS STOCK_ENTRY_BY,
-//           ist.UPDATE_BY,
-//           ist.LAST_UPDATE_DATE,
- 
-//           -- ITEM columns
-//           itm.ITEM_ID,
-//           itm.NAME            AS ITEM_NAME,
-//           itm.DESCRIPTION     AS ITEM_DESCRIPTION,
-//           itm.MODEL,
-//           itm.BRAND_ID,
-//           itm.SIZE_ID,
-//           itm.ORIGIN_ID,
-//           itm.CATEGORY_ID,
-//           itm.TYPE_ID,
-//           itm.COLOR_ID,
-//           itm.SUBCAT_ID,
-//           itm.STATUS          AS ITEM_STATUS,
-//           itm.UNIT            AS ITEM_UNIT,
- 
-//           ROWNUM AS RN
-//         FROM INVENTORIES inv
-//        LEFT JOIN ITEM itm ON inv.ITEM = itm.ITEM_ID    
-// LEFT JOIN ITEM_STOCK ist ON inv.ITEM = ist.ITEM_ID 
-//                         AND inv.STOREID = ist.STORE_ID
-
-
-//                          -- ✅ STORE table JOIN
-//         LEFT JOIN STORES        st ON inv.STOREID = st.STORE_ID
-//         -- ✅ INV_UOM table JOIN
-//         LEFT JOIN INV_UOM     uom ON inv.UNIT_ID = uom.ID
-//         ORDER BY inv.TID DESC
-//       )
-//       WHERE RN > :offset AND RN <= :endRow
-//     `;
-//     const result = await conn.execute(sql, { offset, endRow: offset + limit }, {  outFormat: oracledb.OUT_FORMAT_OBJECT });
-//     return result.rows;
-//   } finally {
-//     await conn.close();
-//   }
-// };
- 
-// // ─── GET SINGLE  (INVENTORIES ⟶ ITEM_STOCK ⟶ ITEM) ──────────────────────────
-// export const getInventoryById = async (tid) => {
-//   const conn = await getConnection();
-//   try {
-//     const sql = `
-//       SELECT
-//         -- INVENTORIES columns
-//         inv.TID,
-//         inv.INVTDATE,
-//         inv.ENTRY_DATE,
-//         inv.UPDATE_DATE,
-//         inv.INVSTATUS,
-//         inv.INVOICE_STATUS,
-//         inv.ITEMTYPE,
-//         inv.ACCOUNTED,
-//         inv.INVQTY,
-//         inv.PONO,
-//         inv.ITEM            AS INV_ITEM_ID,
-//         inv.PRICE           AS INV_PRICE,
-//         inv.STOREID,
-//         inv.SELLING_UNIT_PRICE,
-//         inv.INVENTORY_TYPE,
-//         inv.UNIT_ID         AS INV_UNIT_ID,
-//         inv.UNIT            AS INV_UNIT,
-//         inv.UNIT_PRICE,
-//         inv.GRNNO,
-
-
-//          -- ✅ STORE JOIN — Store Name 
-//           st.STORE_NAME,
-//           st.LOCATION         AS STORE_LOCATION,
-
-//           -- ✅ UOM JOIN — UOM Name 
-//           uom.NAME            AS UOM_NAME,
- 
-//         -- ITEM_STOCK columns
-//         ist.STORE_ID,
-//         ist.STOCK_QTY,
-//         ist.MINIMUM_LEVEL,
-//         ist.STATUS          AS STOCK_STATUS,
-//         ist.PRICE           AS STOCK_PRICE,
-//         ist.LAST_PRICE,
-//         ist.UOM,
-//         ist.BOOKED,
-//         ist.ENTRY_BY        AS STOCK_ENTRY_BY,
-//         ist.UPDATE_BY,
-//         ist.LAST_UPDATE_DATE,
- 
-//         -- ITEM columns
-//         itm.ITEM_ID,
-//         itm.NAME            AS ITEM_NAME,
-//         itm.DESCRIPTION     AS ITEM_DESCRIPTION,
-//         itm.MODEL,
-//         itm.BRAND_ID,
-//         itm.SIZE_ID,
-//         itm.ORIGIN_ID,
-//         itm.CATEGORY_ID,
-//         itm.TYPE_ID,
-//         itm.COLOR_ID,
-//         itm.SUBCAT_ID,
-//         itm.STATUS          AS ITEM_STATUS,
-//         itm.UNIT            AS ITEM_UNIT
- 
-//       FROM INVENTORIES inv
-//      LEFT JOIN ITEM itm ON inv.ITEM = itm.ITEM_ID     
-// LEFT JOIN ITEM_STOCK ist ON inv.ITEM = ist.ITEM_ID 
-//                         AND inv.STOREID = ist.STORE_ID
-
-
-//                           -- ✅ STORE table JOIN
-//         LEFT JOIN STORES        st ON inv.STOREID = st.STORE_ID
-//         -- ✅ INV_UOM table JOIN
-//         LEFT JOIN INV_UOM     uom ON inv.UNIT_ID = uom.ID
-//       WHERE inv.TID = :tid
-//     `;
-//     const result = await conn.execute(sql, { tid }, {  outFormat: oracledb.OUT_FORMAT_OBJECT });
-//     return result.rows[0] ?? null;
-//   } finally {
-//     await conn.close();
-//   }
-// };
-
-// // ─── DELETE ───────────────────────────────────────────────────────────────────
-// export const deleteInventory = async (tid) => {
-//   const conn = await getConnection();
-//   try {
-//     const result = await conn.execute(
-//       `DELETE FROM INVENTORIES WHERE TID = :tid`,
-//       { tid }, { outFormat: oracledb.OUT_FORMAT_OBJECT }
-//     );
-//     return { rowsAffected: result.rowsAffected };
-//   } finally {
-//     await conn.close();
-//   }
-// };
-
-
 import { getConnection, oracledb } from '../../config/db.js';
 
 // ═══════════════════════════════════════════════════════════════
-// Helper: generate GRNNO (simple running number, starts at 100)
-// e.g. 100, 101, 102, ...
+// Helper: generate GRN_NO (INVENTORY_H theke, running number 100+)
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// Helper: generate GRN_NO — format: GRN-YYYY-MM-XXXX
+// Sequence proti mash e 0001 theke abar shuru hoy
 // ═══════════════════════════════════════════════════════════════
 const generateGrnNo = async (conn) => {
-  const seqResult = await conn.execute(
-    `SELECT MAX(TO_NUMBER(GRNNO)) V_NO
-       FROM INVENTORIES
-      WHERE REGEXP_LIKE(GRNNO, '^[0-9]+$')`,
+  const yearMonth = await conn.execute(
+    `SELECT TO_CHAR(SYSDATE, 'YYYY') Y, TO_CHAR(SYSDATE, 'MM') M FROM DUAL`,
     {},
     { outFormat: oracledb.OUT_FORMAT_OBJECT }
   );
-  const lastNo = Number(seqResult.rows[0]?.V_NO || 99); // প্রথমবার 99+1=100 থেকে শুরু
-  return String(lastNo + 1);
+  const { Y: year, M: month } = yearMonth.rows[0];
+  const prefix = `GRN-${year}-${month}-`;
+
+  const seqResult = await conn.execute(
+    `SELECT MAX(TO_NUMBER(SUBSTR(GRN_NO, -4))) V_NO
+       FROM INVENTORY_H
+      WHERE GRN_NO LIKE :prefix || '%'`,
+    { prefix },
+    { outFormat: oracledb.OUT_FORMAT_OBJECT }
+  );
+  const lastNo = Number(seqResult.rows[0]?.V_NO || 0);
+  const nextNo = String(lastNo + 1).padStart(4, '0');
+
+  return `${prefix}${nextNo}`;
 };
 
-// ─── Get next GRN No without inserting anything (frontend pre-fetch এর জন্য) ──
 export const getNextGrnNo = async () => {
   const conn = await getConnection();
   try {
@@ -305,64 +38,165 @@ export const getNextGrnNo = async () => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════
+// Helper: generate PO_NO — format: PO-YYYY-MM-XXXX
+// ═══════════════════════════════════════════════════════════════
+const generatePoNo = async (conn) => {
+  const yearMonth = await conn.execute(
+    `SELECT TO_CHAR(SYSDATE, 'YYYY') Y, TO_CHAR(SYSDATE, 'MM') M FROM DUAL`,
+    {},
+    { outFormat: oracledb.OUT_FORMAT_OBJECT }
+  );
+  const { Y: year, M: month } = yearMonth.rows[0];
+  const prefix = `PO-${year}-${month}-`;
 
+  const seqResult = await conn.execute(
+    `SELECT MAX(TO_NUMBER(SUBSTR(PO_NO, -4))) V_NO
+       FROM INVENTORY_H
+      WHERE PO_NO LIKE :prefix || '%'`,
+    { prefix },
+    { outFormat: oracledb.OUT_FORMAT_OBJECT }
+  );
+  const lastNo = Number(seqResult.rows[0]?.V_NO || 0);
+  const nextNo = String(lastNo + 1).padStart(4, '0');
 
-export const createInventory = async (data) => {
+  return `${prefix}${nextNo}`;
+};
+
+export const getNextPoNo = async () => {
   const conn = await getConnection();
   try {
-    // ✅ frontend থেকে grnNo পাঠানো থাকলে (bulk mode-এ common GRN হিসেবে
-    //    আগে থেকেই fetch করে পাঠানো) সেটাই ব্যবহার হবে, না দিলে backend generate করবে
-    const grnNo = data.grnNo || await generateGrnNo(conn);
-
-    const sql = `
-      INSERT INTO INVENTORIES (
-        INVQTY, GRNNO, PONO, ITEM, PRICE, STOREID,
-        INVTDATE, INVSTATUS, INVOICE_STATUS, ITEMTYPE, ACCOUNTED,
-        UNIT, UNIT_PRICE, UNIT_ID, SELLING_UNIT_PRICE, INVENTORY_TYPE
-      ) VALUES (
-        :invQty, :grnNo, :poNo, :item, :price, :storeId,
-        :invtDate, :invStatus, :invoiceStatus, :itemType, :accounted,
-        :unit, :unitPrice, :unitId, :sellingUnitPrice, :inventoryType
-      )
-    `;
-    const binds = {
-      invQty:           data.invQty           ?? null,
-      grnNo,
-      poNo:             data.poNo             ?? null,
-      item:             data.item,
-      price:            data.price            ?? null,
-      storeId:          data.storeId,
-      invtDate:         data.invtDate ? new Date(data.invtDate) : new Date(),
-      invStatus:        data.invStatus        ?? 1,
-      invoiceStatus:    data.invoiceStatus    ?? 0,
-      itemType:         data.itemType         ?? null,
-      accounted:        data.accounted        ?? null,
-      unit:             data.unit             ?? null,
-      unitPrice:        data.unitPrice ? Number(data.unitPrice) : null,
-      unitId:           data.unitId           ?? null,
-      sellingUnitPrice: data.sellingUnitPrice ?? null,
-      inventoryType:    data.inventoryType    ?? null,
-    };
-    const result = await conn.execute(sql, binds, { autoCommit: true, outFormat: oracledb.OUT_FORMAT_OBJECT });
-    // ✅ actual generated GRN No frontend-কে ফেরত দেওয়া হচ্ছে (toast/log এ কাজে লাগবে)
-    return { rowsAffected: result.rowsAffected, grnNo };
+    return await generatePoNo(conn);
   } finally {
     await conn.close();
   }
 };
 
-// ─── UPDATE ───────────────────────────────────────────────────────────────────
-export const updateInventory = async (tid, data) => {
+// ═══════════════════════════════════════════════════════════════
+// CREATE — header + multiple line items, single transaction
+// data = { invDate, storeId, poNo, grnNo?, creationBy?, items: [...] }
+// ═══════════════════════════════════════════════════════════════
+export const createInventory = async (data) => {
   const conn = await getConnection();
   try {
-    const sql = `
+    const grnNo = data.grnNo || await generateGrnNo(conn);
+     const poNo  = data.poNo  || await generatePoNo(conn);  
+
+    // 1) HEADER INSERT
+    const hSql = `
+      INSERT INTO INVENTORY_H (
+        INV_DATE, STORE_ID, GRN_NO, PO_NO, CREATION_BY
+      ) VALUES (
+        :invDate, :storeId, :grnNo, :poNo, :creationBy
+      )
+      RETURNING ID INTO :outId
+    `;
+    const hBinds = {
+      invDate:    data.invDate ? new Date(data.invDate) : new Date(),
+      storeId:    data.storeId,
+      grnNo,
+      poNo,      
+      creationBy: data.creationBy ?? null,
+      outId: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+    };
+    const hResult = await conn.execute(hSql, hBinds, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
+    const hid = hResult.outBinds.outId[0];
+
+    // 2) LINE ITEMS INSERT
+    const items = data.items || [];
+    const lineSql = `
+      INSERT INTO INVENTORIES (
+        HID, INVQTY, ITEM, PRICE, INVTDATE, INVSTATUS, INVOICE_STATUS,
+        ITEMTYPE, ACCOUNTED, UNIT, UNIT_PRICE, UNIT_ID,
+        SELLING_UNIT_PRICE, INVENTORY_TYPE, RECEIVE_QTY
+      ) VALUES (
+        :hid, :invQty, :item, :price, :invtDate, :invStatus, :invoiceStatus,
+        :itemType, :accounted, :unit, :unitPrice, :unitId,
+        :sellingUnitPrice, :inventoryType, :receiveQty
+      )
+    `;
+
+    for (const it of items) {
+      const lineBinds = {
+        hid,
+        invQty:           it.invQty           ?? null,
+        item:             it.item,
+        price:            it.price            ?? null,
+        invtDate:         it.invtDate ? new Date(it.invtDate) : (data.invDate ? new Date(data.invDate) : new Date()),
+        invStatus:        it.invStatus        ?? 1,
+        invoiceStatus:    it.invoiceStatus    ?? 0,
+        itemType:         it.itemType         ?? null,
+        accounted:        it.accounted        ?? null,
+        unit:             it.unit             ?? null,
+        unitPrice:        it.unitPrice != null ? String(it.unitPrice) : null, // VARCHAR2 column
+        unitId:           it.unitId           ?? null,
+        sellingUnitPrice: it.sellingUnitPrice ?? null,
+        inventoryType:    it.inventoryType    ?? null,
+        receiveQty:       it.receiveQty       ?? null,
+      };
+      await conn.execute(lineSql, lineBinds, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
+    }
+
+    await conn.commit();
+    return { hid, grnNo, poNo, itemCount: items.length };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// UPDATE — header update + diff-based upsert of line items
+// data = { invDate, storeId, poNo, grnNo, updateBy?, items: [{ tid?, ... }] }
+// ═══════════════════════════════════════════════════════════════
+export const updateInventory = async (hid, data) => {
+  const conn = await getConnection();
+  try {
+    // 1) HEADER UPDATE
+    const hSql = `
+      UPDATE INVENTORY_H SET
+        INV_DATE     = :invDate,
+        STORE_ID     = :storeId,
+        GRN_NO       = :grnNo,
+        PO_NO        = :poNo,
+        UPDATE_BY    = :updateBy,
+        UPDATED_DATE = SYSDATE
+      WHERE ID = :hid
+    `;
+    await conn.execute(hSql, {
+      hid,
+      invDate:  data.invDate ? new Date(data.invDate) : null,
+      storeId:  data.storeId,
+      grnNo:    data.grnNo || null,
+      poNo:     data.poNo  || null,
+      updateBy: data.updateBy ?? null,
+    }, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
+
+    const items = data.items || [];
+
+    // 2) EXISTING TIDs
+    const existingResult = await conn.execute(
+      `SELECT TID FROM INVENTORIES WHERE HID = :hid`,
+      { hid },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const existingTids = existingResult.rows.map(r => r.TID);
+    const incomingTids  = items.filter(it => it.tid).map(it => Number(it.tid));
+
+    // 3) DELETE — payload e r nai emon lines
+    const toDelete = existingTids.filter(tid => !incomingTids.includes(tid));
+    for (const tid of toDelete) {
+      await conn.execute(`DELETE FROM INVENTORIES WHERE TID = :tid`, { tid }, { autoCommit: false });
+    }
+
+    // 4) UPDATE / INSERT
+    const updateSql = `
       UPDATE INVENTORIES SET
         INVQTY             = :invQty,
-        GRNNO              = :grnNo,
-        PONO               = :poNo,
         ITEM               = :item,
         PRICE              = :price,
-        STOREID            = :storeId,
         INVTDATE           = :invtDate,
         INVSTATUS          = :invStatus,
         INVOICE_STATUS     = :invoiceStatus,
@@ -373,36 +207,60 @@ export const updateInventory = async (tid, data) => {
         UNIT_ID            = :unitId,
         SELLING_UNIT_PRICE = :sellingUnitPrice,
         INVENTORY_TYPE     = :inventoryType,
+        RECEIVE_QTY        = :receiveQty,
         UPDATE_DATE        = SYSDATE
       WHERE TID = :tid
     `;
+    const insertSql = `
+      INSERT INTO INVENTORIES (
+        HID, INVQTY, ITEM, PRICE, INVTDATE, INVSTATUS, INVOICE_STATUS,
+        ITEMTYPE, ACCOUNTED, UNIT, UNIT_PRICE, UNIT_ID,
+        SELLING_UNIT_PRICE, INVENTORY_TYPE, RECEIVE_QTY
+      ) VALUES (
+        :hid, :invQty, :item, :price, :invtDate, :invStatus, :invoiceStatus,
+        :itemType, :accounted, :unit, :unitPrice, :unitId,
+        :sellingUnitPrice, :inventoryType, :receiveQty
+      )
+    `;
 
-    const binds = {
-      tid,
-      invQty:           data.invQty           ? Number(data.invQty)           : null,
-      unitPrice:        data.unitPrice != null ? String(data.unitPrice)       : null,
-      invStatus:        Number(data.invStatus  ?? 1),
-      invoiceStatus:    Number(data.invoiceStatus ?? 0),
-      item:             data.item,
-      storeId:          data.storeId,
-      grnNo:            data.grnNo            || null,
-      poNo:             data.poNo             ? Number(data.poNo)             : null,
-      price:            data.price            ? Number(data.price)            : null,
-      sellingUnitPrice: data.sellingUnitPrice ? Number(data.sellingUnitPrice) : null,
-      unit:             data.unit             || null,
-      unitId:           data.unitId           ? Number(data.unitId)           : null,
-      inventoryType:    data.inventoryType    ? Number(data.inventoryType)    : null,
-      itemType:         data.itemType         ? Number(data.itemType)        : null,
-      accounted:        data.accounted        ? Number(data.accounted)       : null,
-      invtDate:         data.invtDate         ? new Date(data.invtDate)      : null,
-    };
-    const result = await conn.execute(sql, binds, { autoCommit: true, outFormat: oracledb.OUT_FORMAT_OBJECT });
-    return { rowsAffected: result.rowsAffected };
+    for (const it of items) {
+      const lineBinds = {
+        invQty:           it.invQty           ?? null,
+        item:             it.item,
+        price:            it.price            ?? null,
+        invtDate:         it.invtDate ? new Date(it.invtDate) : new Date(),
+        invStatus:        it.invStatus        ?? 1,
+        invoiceStatus:    it.invoiceStatus    ?? 0,
+        itemType:         it.itemType         ?? null,
+        accounted:        it.accounted        ?? null,
+        unit:             it.unit             ?? null,
+        unitPrice:        it.unitPrice != null ? String(it.unitPrice) : null,
+        unitId:           it.unitId           ?? null,
+        sellingUnitPrice: it.sellingUnitPrice ?? null,
+        inventoryType:    it.inventoryType    ?? null,
+        receiveQty:       it.receiveQty       ?? null,
+      };
+
+      if (it.tid) {
+        await conn.execute(updateSql, { ...lineBinds, tid: Number(it.tid) }, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
+      } else {
+        await conn.execute(insertSql, { ...lineBinds, hid }, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
+      }
+    }
+
+    await conn.commit();
+    return { rowsAffected: items.length };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
   } finally {
     await conn.close();
   }
 };
 
+// ═══════════════════════════════════════════════════════════════
+// LIST — header level, joined with store, aggregated item count/qty
+// ═══════════════════════════════════════════════════════════════
 export const getAllInventories = async ({ page = 1, limit = 20 } = {}) => {
   const conn = await getConnection();
   try {
@@ -410,59 +268,27 @@ export const getAllInventories = async ({ page = 1, limit = 20 } = {}) => {
     const sql = `
       SELECT *
       FROM (
-        SELECT
-          inv.TID,
-          inv.INVTDATE,
-          inv.ENTRY_DATE,
-          inv.UPDATE_DATE,
-          inv.INVSTATUS,
-          inv.INVOICE_STATUS,
-          inv.ITEMTYPE,
-          inv.ACCOUNTED,
-          inv.INVQTY,
-          inv.PONO,
-          inv.ITEM            AS INV_ITEM_ID,
-          inv.PRICE           AS INV_PRICE,
-          inv.STOREID,
-          inv.SELLING_UNIT_PRICE,
-          inv.INVENTORY_TYPE,
-          inv.UNIT_ID         AS INV_UNIT_ID,
-          inv.UNIT            AS INV_UNIT,
-          inv.UNIT_PRICE,
-          inv.GRNNO,
-          st.STORE_NAME,
-          st.LOCATION         AS STORE_LOCATION,
-          uom.NAME            AS UOM_NAME,
-          ist.STOCK_QTY,
-          ist.MINIMUM_LEVEL,
-          ist.STATUS          AS STOCK_STATUS,
-          ist.PRICE           AS STOCK_PRICE,
-          ist.LAST_PRICE,
-          ist.UOM,
-          ist.BOOKED,
-          ist.ENTRY_BY        AS STOCK_ENTRY_BY,
-          ist.UPDATE_BY,
-          ist.LAST_UPDATE_DATE,
-          itm.ITEM_ID,
-          itm.NAME            AS ITEM_NAME,
-          itm.DESCRIPTION     AS ITEM_DESCRIPTION,
-          itm.MODEL,
-          itm.BRAND_ID,
-          itm.SIZE_ID,
-          itm.ORIGIN_ID,
-          itm.CATEGORY_ID,
-          itm.TYPE_ID,
-          itm.COLOR_ID,
-          itm.SUBCAT_ID,
-          itm.STATUS          AS ITEM_STATUS,
-          itm.UNIT            AS ITEM_UNIT,
-          ROWNUM AS RN
-        FROM INVENTORIES inv
-        LEFT JOIN ITEM itm ON inv.ITEM = itm.ITEM_ID
-        LEFT JOIN ITEM_STOCK ist ON inv.ITEM = ist.ITEM_ID AND inv.STOREID = ist.STORE_ID
-        LEFT JOIN STORES  st ON inv.STOREID = st.STORE_ID
-        LEFT JOIN INV_UOM uom ON inv.UNIT_ID = uom.ID
-        ORDER BY inv.TID DESC
+        SELECT g.*, ROWNUM AS RN
+        FROM (
+          SELECT
+            h.ID              AS HID,
+            h.INV_DATE,
+            h.STORE_ID,
+            h.GRN_NO,
+            h.PO_NO,
+            h.CREATION_DATE,
+            h.UPDATED_DATE,
+            st.STORE_NAME,
+            st.LOCATION       AS STORE_LOCATION,
+            COUNT(inv.TID)    AS ITEM_COUNT,
+            SUM(inv.INVQTY)   AS TOTAL_QTY
+          FROM INVENTORY_H h
+          LEFT JOIN INVENTORIES inv ON inv.HID = h.ID
+          LEFT JOIN STORES st       ON h.STORE_ID = st.STORE_ID
+          GROUP BY h.ID, h.INV_DATE, h.STORE_ID, h.GRN_NO, h.PO_NO,
+                   h.CREATION_DATE, h.UPDATED_DATE, st.STORE_NAME, st.LOCATION
+          ORDER BY h.ID DESC
+        ) g
       )
       WHERE RN > :offset AND RN <= :endRow
     `;
@@ -473,79 +299,74 @@ export const getAllInventories = async ({ page = 1, limit = 20 } = {}) => {
   }
 };
 
-export const getInventoryById = async (tid) => {
+// ═══════════════════════════════════════════════════════════════
+// GET SINGLE — header + full line items array (with item/uom/stock joins)
+// ═══════════════════════════════════════════════════════════════
+export const getInventoryById = async (hid) => {
   const conn = await getConnection();
   try {
-    const sql = `
-      SELECT
-        inv.TID,
-        inv.INVTDATE,
-        inv.ENTRY_DATE,
-        inv.UPDATE_DATE,
-        inv.INVSTATUS,
-        inv.INVOICE_STATUS,
-        inv.ITEMTYPE,
-        inv.ACCOUNTED,
-        inv.INVQTY,
-        inv.PONO,
-        inv.ITEM            AS INV_ITEM_ID,
-        inv.PRICE           AS INV_PRICE,
-        inv.STOREID,
-        inv.SELLING_UNIT_PRICE,
-        inv.INVENTORY_TYPE,
-        inv.UNIT_ID         AS INV_UNIT_ID,
-        inv.UNIT            AS INV_UNIT,
-        inv.UNIT_PRICE,
-        inv.GRNNO,
-        st.STORE_NAME,
-        st.LOCATION         AS STORE_LOCATION,
-        uom.NAME            AS UOM_NAME,
-        ist.STORE_ID,
-        ist.STOCK_QTY,
-        ist.MINIMUM_LEVEL,
-        ist.STATUS          AS STOCK_STATUS,
-        ist.PRICE           AS STOCK_PRICE,
-        ist.LAST_PRICE,
-        ist.UOM,
-        ist.BOOKED,
-        ist.ENTRY_BY        AS STOCK_ENTRY_BY,
-        ist.UPDATE_BY,
-        ist.LAST_UPDATE_DATE,
-        itm.ITEM_ID,
-        itm.NAME            AS ITEM_NAME,
-        itm.DESCRIPTION     AS ITEM_DESCRIPTION,
-        itm.MODEL,
-        itm.BRAND_ID,
-        itm.SIZE_ID,
-        itm.ORIGIN_ID,
-        itm.CATEGORY_ID,
-        itm.TYPE_ID,
-        itm.COLOR_ID,
-        itm.SUBCAT_ID,
-        itm.STATUS          AS ITEM_STATUS,
-        itm.UNIT            AS ITEM_UNIT
-      FROM INVENTORIES inv
-      LEFT JOIN ITEM itm ON inv.ITEM = itm.ITEM_ID
-      LEFT JOIN ITEM_STOCK ist ON inv.ITEM = ist.ITEM_ID AND inv.STOREID = ist.STORE_ID
-      LEFT JOIN STORES  st ON inv.STOREID = st.STORE_ID
-      LEFT JOIN INV_UOM uom ON inv.UNIT_ID = uom.ID
-      WHERE inv.TID = :tid
+    const hSql = `
+      SELECT h.ID AS HID, h.INV_DATE, h.STORE_ID, h.GRN_NO, h.PO_NO,
+             h.CREATION_DATE, h.CREATION_BY, h.UPDATED_DATE, h.UPDATE_BY,
+             st.STORE_NAME, st.LOCATION AS STORE_LOCATION
+      FROM INVENTORY_H h
+      LEFT JOIN STORES st ON h.STORE_ID = st.STORE_ID
+      WHERE h.ID = :hid
     `;
-    const result = await conn.execute(sql, { tid }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
-    return result.rows[0] ?? null;
+    const hResult = await conn.execute(hSql, { hid }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    const header = hResult.rows[0];
+    if (!header) return null;
+
+    const lineSql = `
+      SELECT
+        inv.TID, inv.INVQTY, inv.ITEM AS INV_ITEM_ID, inv.PRICE AS INV_PRICE,
+        inv.INVTDATE, inv.INVSTATUS, inv.INVOICE_STATUS, inv.ITEMTYPE, inv.ACCOUNTED,
+        inv.UNIT AS INV_UNIT, inv.UNIT_PRICE, inv.UNIT_ID AS INV_UNIT_ID,
+        inv.SELLING_UNIT_PRICE, inv.INVENTORY_TYPE, inv.RECEIVE_QTY,
+        inv.ENTRY_DATE, inv.UPDATE_DATE,
+        uom.NAME AS UOM_NAME,
+        ist.STOCK_QTY, ist.MINIMUM_LEVEL, ist.STATUS AS STOCK_STATUS,
+        ist.PRICE AS STOCK_PRICE, ist.LAST_PRICE, ist.UOM, ist.BOOKED,
+        itm.ITEM_ID, itm.NAME AS ITEM_NAME, itm.DESCRIPTION AS ITEM_DESCRIPTION,
+        itm.MODEL, itm.BRAND_ID, itm.SIZE_ID, itm.ORIGIN_ID, itm.CATEGORY_ID,
+        itm.TYPE_ID, itm.COLOR_ID, itm.SUBCAT_ID, itm.STATUS AS ITEM_STATUS, itm.UNIT AS ITEM_UNIT
+      FROM INVENTORIES inv
+      LEFT JOIN ITEM itm       ON inv.ITEM = itm.ITEM_ID
+      LEFT JOIN ITEM_STOCK ist ON inv.ITEM = ist.ITEM_ID AND ist.STORE_ID = :storeId
+      LEFT JOIN INV_UOM uom   ON inv.UNIT_ID = uom.ID
+      WHERE inv.HID = :hid
+      ORDER BY inv.TID
+    `;
+    const lineResult = await conn.execute(lineSql, { hid, storeId: header.STORE_ID }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+
+    return { ...header, items: lineResult.rows };
   } finally {
     await conn.close();
   }
 };
 
-export const deleteInventory = async (tid) => {
+// ═══════════════════════════════════════════════════════════════
+// DELETE — protected: approved (INVSTATUS=2) line thakle delete allow na
+// ═══════════════════════════════════════════════════════════════
+export const deleteInventory = async (hid) => {
   const conn = await getConnection();
   try {
-    const result = await conn.execute(
-      `DELETE FROM INVENTORIES WHERE TID = :tid`,
-      { tid }, { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    const check = await conn.execute(
+      `SELECT COUNT(*) CNT FROM INVENTORIES WHERE HID = :hid AND INVSTATUS = 2`,
+      { hid },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
+    if (check.rows[0].CNT > 0) {
+      throw new Error('Approved item(s) ache, delete kora jabe na.');
+    }
+
+    await conn.execute(`DELETE FROM INVENTORIES WHERE HID = :hid`, { hid }, { autoCommit: false });
+    const result = await conn.execute(`DELETE FROM INVENTORY_H WHERE ID = :hid`, { hid }, { autoCommit: false });
+    await conn.commit();
     return { rowsAffected: result.rowsAffected };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
   } finally {
     await conn.close();
   }

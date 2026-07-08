@@ -28,6 +28,7 @@ router.get('/item/search', controller.searchItems);
 router.get('/',           controller.getAll);
 router.post('/',          controller.create);
 router.get('/:formId',    controller.getSingle);
+router.put('/:formId/lock', controller.lockAction);
 router.put('/:formId',    controller.update);
 router.delete('/:formId', controller.remove);
 

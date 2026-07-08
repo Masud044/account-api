@@ -207,3 +207,14 @@ export const updateApprovalStatus = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+export const lockAction = async (req, res) => {
+  try {
+    const { formId } = req.params;
+    // ✅ fix: was `recognitionService` (undefined) — should be `service`
+    const result = await service.lockRecognitionAction(formId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

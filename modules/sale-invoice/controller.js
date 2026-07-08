@@ -91,3 +91,14 @@ export const dashboardDailySummary = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// PUT /api/sal-invoice/:hid/lock
+export const lockForReceive = async (req, res) => {
+  try {
+    const { hid } = req.params;
+    const result = await invoiceService.lockInvoiceForReceive(Number(hid));
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

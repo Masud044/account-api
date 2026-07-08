@@ -484,27 +484,34 @@ const totAmt = Math.round(
 export const getAllInvoices = async () => {
   const conn = await getConnection();
   try {
-  const sql = `
-  SELECT
-    h.HID,
-    h.INVOICE_ID,
-    TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') AS INVOICE_DATE,
-    h.TOT_QTY,
-    h.TOT_AMT,
-    h.CREATION_DATE,
-    h.CUSTOMER_ID,
-    c.CUSTOMER_NAME
-  FROM SAL_INVOICE_H h
-  LEFT JOIN CUSTOMER_INFO c ON h.CUSTOMER_ID = c.CUSTOMER_ID
-  ORDER BY h.HID DESC
-`;
+    const sql = `
+      SELECT
+        h.HID,
+        h.INVOICE_ID,
+        TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') AS INVOICE_DATE,
+        h.TOT_QTY,
+        h.TOT_AMT,
+        h.RECEIVE_CREATED,
+        h.CREATION_DATE,
+        h.CUSTOMER_ID,
+        c.CUSTOMER_NAME,
+        NVL(dq.PRODUCTION_QTY_SUM, 0) AS PRODUCTION_QTY
+      FROM SAL_INVOICE_H h
+      LEFT JOIN CUSTOMER_INFO c ON h.CUSTOMER_ID = c.CUSTOMER_ID
+      LEFT JOIN (
+        SELECT l.HID, SUM(d.PRODUCTION_QTY) AS PRODUCTION_QTY_SUM
+        FROM SAL_INVOICE_L l
+        JOIN SAL_INVOICE_D d ON l.LID = d.LID
+        GROUP BY l.HID
+      ) dq ON dq.HID = h.HID
+      ORDER BY h.HID DESC
+    `;
     const result = await conn.execute(sql, {}, { outFormat: oracledb.OUT_FORMAT_OBJECT });
     return result.rows;
   } finally {
     await conn.close();
   }
 };
-
 // ─── GET SINGLE INVOICE (full detail) ────────────────────────────────────────
 export const getInvoiceById = async (hid) => {
   const conn = await getConnection();
@@ -518,6 +525,7 @@ export const getInvoiceById = async (hid) => {
     h.TOT_QTY,
     h.TOT_AMT,
     h.CREATION_DATE,
+    h.RECEIVE_CREATED,
     h.CUSTOMER_ID,
     c.CUSTOMER_NAME,
     c.ADDRESS,
@@ -853,6 +861,21 @@ export const getInvoiceDailySummary = async (month, year) => {
     );
 
     return result.rows;
+  } finally {
+    await conn.close();
+  }
+};
+
+// ─── LOCK INVOICE (mark as receive-voucher-created) ──────────────────────────
+export const lockInvoiceForReceive = async (hid) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `UPDATE SAL_INVOICE_H SET RECEIVE_CREATED = 1 WHERE HID = :hid`,
+      { hid },
+      { autoCommit: true }
+    );
+    return { rowsAffected: result.rowsAffected };
   } finally {
     await conn.close();
   }

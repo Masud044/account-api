@@ -454,17 +454,18 @@ export const createInvoice = async (data) => {
       );
       const lid = lResult.outBinds.outLid[0];
 
-      await conn.execute(
-        `INSERT INTO SAL_INVOICE_D (LID, PRODUCTION_QTY, PRICE, CREATION_BY, CREATION_DATE)
-         VALUES (:lid, :productionQty, :price, :creationBy, SYSDATE)`,
-        {
-          lid,
-          productionQty: Number(line.productionQty),
-          price:         Number(line.price),
-          creationBy:    data.createdBy ?? null,
-        },
-        { autoCommit: false }
-      );
+    await conn.execute(
+  `INSERT INTO SAL_INVOICE_D (LID, PRODUCTION_QTY, SALE_QTY, PRICE, CREATION_BY, CREATION_DATE)
+   VALUES (:lid, :productionQty, :saleQty, :price, :creationBy, SYSDATE)`,
+  {
+    lid,
+    productionQty: Number(line.productionQty),
+    saleQty:       Number(line.saleQty ?? line.productionQty),
+    price:         Number(line.price),
+    creationBy:    data.createdBy ?? null,
+  },
+  { autoCommit: false }
+);
     }
 
     await conn.commit();
@@ -531,25 +532,25 @@ export const getInvoiceById = async (hid) => {
     if (!header) return null;
 
     // Lines + Details + Production info
-    const lResult = await conn.execute(
-      `SELECT
-        l.LID,
-        l.PRODUTION_ID,
-        d.DID,
-        d.PRODUCTION_QTY,
-        d.PRICE,
-        (d.PRODUCTION_QTY * d.PRICE) AS LINE_TOTAL,
-        ep.PRODUCTION_DATE,
-        ep.QTY AS AVAILABLE_QTY
-       FROM SAL_INVOICE_L l
-       LEFT JOIN SAL_INVOICE_D d  ON l.LID      = d.LID
-       LEFT JOIN EGG_PRODUCTION ep ON l.PRODUTION_ID = ep.ID
-       WHERE l.HID = :hid
-       ORDER BY l.LID ASC`,
-      { hid },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-
+   const lResult = await conn.execute(
+  `SELECT
+    l.LID,
+    l.PRODUTION_ID,
+    d.DID,
+    d.PRODUCTION_QTY,
+    d.SALE_QTY,
+    d.PRICE,
+    (d.SALE_QTY * d.PRICE) AS LINE_TOTAL,
+    ep.PRODUCTION_DATE,
+    ep.QTY AS AVAILABLE_QTY
+   FROM SAL_INVOICE_L l
+   LEFT JOIN SAL_INVOICE_D d  ON l.LID      = d.LID
+   LEFT JOIN EGG_PRODUCTION ep ON l.PRODUTION_ID = ep.ID
+   WHERE l.HID = :hid
+   ORDER BY l.LID ASC`,
+  { hid },
+  { outFormat: oracledb.OUT_FORMAT_OBJECT }
+);
     return { ...header, lines: lResult.rows };
   } finally {
     await conn.close();
@@ -671,21 +672,24 @@ export const updateInvoice = async (hid, data) => {
 
       if (existing) {
         // Same production date as before → keep LID/DID, just update qty/price
-        await conn.execute(
-          `UPDATE SAL_INVOICE_D
-             SET PRODUCTION_QTY = :productionQty,
-                 PRICE          = :price,
-                 UPDATED_BY     = :updatedBy,
-                 UPDATED_DATE   = SYSDATE
-           WHERE LID = :lid`,
-          {
-            productionQty: Number(line.productionQty),
-            price:         Number(line.price),
-            updatedBy:     data.updatedBy ?? null,
-            lid:           existing.LID,
-          },
-          { autoCommit: false }
-        );
+       // existing line update
+await conn.execute(
+  `UPDATE SAL_INVOICE_D
+     SET PRODUCTION_QTY = :productionQty,
+         SALE_QTY       = :saleQty,
+         PRICE          = :price,
+         UPDATED_BY     = :updatedBy,
+         UPDATED_DATE   = SYSDATE
+   WHERE LID = :lid`,
+  {
+    productionQty: Number(line.productionQty),
+    saleQty:       Number(line.saleQty ?? line.productionQty),
+    price:         Number(line.price),
+    updatedBy:     data.updatedBy ?? null,
+    lid:           existing.LID,
+  },
+  { autoCommit: false }
+);
       } else {
         // New production date → insert fresh L + D
         const insL = await conn.execute(
@@ -701,17 +705,19 @@ export const updateInvoice = async (hid, data) => {
         );
         const lid = insL.outBinds.outLid[0];
 
-        await conn.execute(
-          `INSERT INTO SAL_INVOICE_D (LID, PRODUCTION_QTY, PRICE, CREATION_BY, CREATION_DATE)
-           VALUES (:lid, :productionQty, :price, :creationBy, SYSDATE)`,
-          {
-            lid,
-            productionQty: Number(line.productionQty),
-            price:         Number(line.price),
-            creationBy:    data.updatedBy ?? null,
-          },
-          { autoCommit: false }
-        );
+       // new line insert (removed date এ notun add hole)
+await conn.execute(
+  `INSERT INTO SAL_INVOICE_D (LID, PRODUCTION_QTY, SALE_QTY, PRICE, CREATION_BY, CREATION_DATE)
+   VALUES (:lid, :productionQty, :saleQty, :price, :creationBy, SYSDATE)`,
+  {
+    lid,
+    productionQty: Number(line.productionQty),
+    saleQty:       Number(line.saleQty ?? line.productionQty),
+    price:         Number(line.price),
+    creationBy:    data.updatedBy ?? null,
+  },
+  { autoCommit: false }
+);
       }
     }
 

@@ -399,8 +399,10 @@ import { getConnection, oracledb } from '../../config/db.js';
 export const createInvoice = async (data) => {
   const conn = await getConnection();
   try {
-    const totQty = data.lines.reduce((s, l) => s + Number(l.productionQty || 0), 0);
-    const totAmt = data.lines.reduce((s, l) => s + Number(l.productionQty || 0) * Number(l.price || 0), 0);
+   const totQty = data.lines.reduce((s, l) => s + Number(l.saleQty ?? l.productionQty ?? 0), 0);
+const totAmt = Math.round(
+  data.lines.reduce((s, l) => s + Number(l.saleQty ?? l.productionQty ?? 0) * Number(l.price || 0), 0) * 100
+) / 100;
 
     // ── Generate INVOICE_ID (format: YYYYMM + 3-digit running number, resets each month) ──
     const invoiceDateObj = new Date(data.invoiceDate);
@@ -606,9 +608,11 @@ export const updateInvoice = async (hid, data) => {
   // data: { customerId, invoiceDate, updatedBy, lines: [{ productionId, productionQty, price }] }
   const conn = await getConnection();
   try {
-    const totQty = data.lines.reduce((s, l) => s + Number(l.productionQty || 0), 0);
-    const totAmt = data.lines.reduce((s, l) => s + Number(l.productionQty || 0) * Number(l.price || 0), 0);
-
+   const totQty = data.lines.reduce((s, l) => s + Number(l.saleQty ?? l.productionQty ?? 0), 0);
+const totAmt = Math.round(
+  data.lines.reduce((s, l) => s + Number(l.saleQty ?? l.productionQty ?? 0) * Number(l.price || 0), 0) * 100
+) / 100;
+    // ... বাকি অপরিবর্তিত
     // 1. Update header (proper UPDATED_BY / UPDATED_DATE audit trail)
     // NOTE: INVOICE_ID is intentionally NOT touched here — it's assigned once
     // at creation time and stays fixed for the life of the invoice.

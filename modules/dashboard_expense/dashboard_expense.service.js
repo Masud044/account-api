@@ -67,3 +67,52 @@ export async function getExpenseBreakdown({ month, year, date } = {}) {
     return { total, rows };
   });
 }
+
+
+// ─── EXPENSE BREAKDOWN BY ACCOUNT (chart of account level, not category) ─────
+export async function getExpenseByAccount({ month, year } = {}) {
+  console.log('[getExpenseByAccount] input:', { month, year, monthType: typeof month, yearType: typeof year });
+
+  const binds = {};
+  let dateFilter = '';
+
+  if (month && year) {
+    const mm = String(month).padStart(2, "0");
+    binds.date_bv = `${mm}-${year}`;
+    dateFilter = `
+      AND H.GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
+      AND H.GL_ENTRY_DATE < ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
+    `;
+  } else if (year) {
+    binds.year_start = `01-${year}`;
+    binds.year_end   = `01-${year + 1}`;
+    dateFilter = `
+      AND H.GL_ENTRY_DATE >= TO_DATE(:year_start, 'MM-YYYY')
+      AND H.GL_ENTRY_DATE < TO_DATE(:year_end, 'MM-YYYY')
+    `;
+  }
+
+  const sql = `
+    SELECT
+      C.ACCOUNT_ID,
+      C.ACCOUNT_NAME,
+      SUM(L.DEBIT) AS TOTAL_AMT
+    FROM GLMASTER H
+    JOIN GLDETAILS L ON H.ID = L.GLMASTERID
+    JOIN CHART_OF_ACCOUNT C ON C.ACCOUNT_ID = L.CODE
+    WHERE H.VOUCHER_TYPE = 2
+      
+      ${dateFilter}
+    GROUP BY C.ACCOUNT_ID, C.ACCOUNT_NAME
+    ORDER BY TOTAL_AMT DESC
+  `;
+
+  return withConnection(async (conn) => {
+    const result = await conn.execute(sql, binds, { outFormat: 4002 });
+    const rows = (result.rows || []).map((row) => ({
+      ACCOUNT_NAME: row.ACCOUNT_NAME,
+      AMT: row.TOTAL_AMT != null ? Number(row.TOTAL_AMT) : 0,
+    }));
+    return { rows };
+  });
+}

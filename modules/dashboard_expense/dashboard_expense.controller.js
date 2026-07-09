@@ -1,4 +1,4 @@
-import { getExpenseTotal, getExpenseBreakdown } from "./dashboard_expense.service.js";
+import { getExpenseTotal, getExpenseBreakdown, getExpenseByAccount  } from "./dashboard_expense.service.js";
 
 export async function getExpense(req, res) {
   try {
@@ -49,3 +49,19 @@ export async function getExpenseDetails(req, res) {
     return res.status(500).json({ success: false, message: "Internal server error." });
   }
 }
+
+
+// বাকি import গুলার সাথে যোগ করো
+
+export const expenseByAccount = async (req, res) => {
+  try {
+    const month = req.query.month ? parseInt(req.query.month) : undefined;
+    const year  = req.query.year  ? parseInt(req.query.year)  : undefined;
+
+    const result = await getExpenseByAccount({ month, year });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("[dashboard_expense] expenseByAccount error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

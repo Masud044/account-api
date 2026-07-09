@@ -126,17 +126,62 @@ export const updateEggProduction = async (id, data) => {
 //   }
 // };
 
-export const getAllEggProduction = async ({ page = 1, limit = 20 } = {}) => {
+// export const getAllEggProduction = async ({ page = 1, limit = 20 } = {}) => {
+//   const conn = await getConnection();
+//   try {
+//     // ✅ limit=0 মানে সব আনবে
+//     if (!limit || limit === 0) {
+//       const sql = `
+//         SELECT
+//           ID, PRODUCTION_DATE, QTY,
+//           CREATION_DATE, UPDATE_DATE,
+//           CREATION_BY, UPDATED_BY
+//         FROM EGG_PRODUCTION
+//         ORDER BY PRODUCTION_DATE DESC, ID DESC
+//       `;
+//       const result = await conn.execute(sql, {}, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+//       return result.rows;
+//     }
+
+//     const offset = (page - 1) * limit;
+//     const sql = `
+//       SELECT * FROM (
+//         SELECT
+//           eg.ID, eg.PRODUCTION_DATE, eg.QTY,
+//           eg.CREATION_DATE, eg.UPDATE_DATE,
+//           eg.CREATION_BY, eg.UPDATED_BY,
+//           ROWNUM AS RN
+//         FROM EGG_PRODUCTION eg
+//         ORDER BY eg.PRODUCTION_DATE DESC, eg.ID DESC
+//       )
+//       WHERE RN > :offset AND RN <= :endRow
+//     `;
+//     const result = await conn.execute(
+//       sql,
+//       { offset, endRow: offset + limit },
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
+//     return result.rows;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+export const getAllEggProduction = async ({ page = 1, limit = 20, excludeInvoiced = false } = {}) => {
   const conn = await getConnection();
   try {
-    // ✅ limit=0 মানে সব আনবে
+    const invoicedFilter = excludeInvoiced
+      ? `WHERE NOT EXISTS (SELECT 1 FROM SAL_INVOICE_L l WHERE l.PRODUTION_ID = eg.ID)`
+      : '';
+
+    // limit=0 মানে সব আনবে
     if (!limit || limit === 0) {
       const sql = `
         SELECT
           ID, PRODUCTION_DATE, QTY,
           CREATION_DATE, UPDATE_DATE,
           CREATION_BY, UPDATED_BY
-        FROM EGG_PRODUCTION
+        FROM EGG_PRODUCTION eg
+        ${invoicedFilter}
         ORDER BY PRODUCTION_DATE DESC, ID DESC
       `;
       const result = await conn.execute(sql, {}, { outFormat: oracledb.OUT_FORMAT_OBJECT });
@@ -152,6 +197,7 @@ export const getAllEggProduction = async ({ page = 1, limit = 20 } = {}) => {
           eg.CREATION_BY, eg.UPDATED_BY,
           ROWNUM AS RN
         FROM EGG_PRODUCTION eg
+        ${invoicedFilter}
         ORDER BY eg.PRODUCTION_DATE DESC, eg.ID DESC
       )
       WHERE RN > :offset AND RN <= :endRow
@@ -166,7 +212,6 @@ export const getAllEggProduction = async ({ page = 1, limit = 20 } = {}) => {
     await conn.close();
   }
 };
-
 // ─── GET SINGLE ───────────────────────────────────────────────────────────────
 export const getEggProductionById = async (id) => {
   const conn = await getConnection();

@@ -56,26 +56,46 @@ export const update = async (req, res) => {
   }
 };
 
+// export const getAll = async (req, res) => {
+//   try {
+//     const { fromDate, toDate, page = 1, limit = 20 } = req.query;
+
+//     if (fromDate && toDate) {
+//       const rows = await eggProductionService.getEggProductionByDateRange(fromDate, toDate);
+//       return res.json({ success: true, data: rows });
+//     }
+
+//     // ✅ limit না দিলে সব আনবে
+//     const rows = await eggProductionService.getAllEggProduction({
+//       page: Number(page),
+//       limit: Number(limit),
+//     });
+//     res.json({ success: true, data: rows });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+
 export const getAll = async (req, res) => {
   try {
-    const { fromDate, toDate, page = 1, limit = 20 } = req.query;
+    const { fromDate, toDate, page = 1, limit = 20, excludeInvoiced } = req.query;
 
     if (fromDate && toDate) {
       const rows = await eggProductionService.getEggProductionByDateRange(fromDate, toDate);
       return res.json({ success: true, data: rows });
     }
 
-    // ✅ limit না দিলে সব আনবে
     const rows = await eggProductionService.getAllEggProduction({
       page: Number(page),
       limit: Number(limit),
+      excludeInvoiced: excludeInvoiced === 'true',   // ← নতুন
     });
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 
 export const getSingle = async (req, res) => {
   try {

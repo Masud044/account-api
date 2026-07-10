@@ -27,12 +27,14 @@ router.get('/item/search', controller.searchItems);
 // ── Purchase Recognition (H + D) ──────────────────────────────────────────────
 router.get('/',           controller.getAll);
 router.post('/',          controller.create);
+router.put('/:formId/send-for-approval', controller.sendForApproval);
 router.get('/:formId',    controller.getSingle);
 router.put('/:formId/lock', controller.lockAction);
 router.put('/:formId',    controller.update);
 router.delete('/:formId', controller.remove);
 
 // ── Approval Tracking (single status: Pending → Approved / Rejected) ─────────
+
 router.get('/approvals/all',            controller.getAllApprovals);
 router.get('/approvals/:formId',        controller.getSingleApproval);
 router.patch('/approvals/:formId/status', controller.updateApprovalStatus);

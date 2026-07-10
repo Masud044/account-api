@@ -74,6 +74,13 @@ import salInvoiceRouter from "./modules/sale-invoice/route.js";
 import purchaserRoutes from "./modules/purchaser-recognition/route.js"
 
 
+import chickenProjectRoutes from './modules/chicken-project/route.js';
+import cowProjectRoutes     from './modules/cow-project/route.js';
+import fishProjectRoutes    from './modules/fish-project/route.js';
+import farmDashboardRoutes from './modules/dashboard-farm/route.js';
+
+
+
 
 
 
@@ -170,6 +177,13 @@ app.use("/api/egg-production", eggProductionRoutes);
 
 app.use('/api/sal-invoice', salInvoiceRouter);
 app.use('/api/purchase-recognition', purchaserRoutes);
+
+
+
+app.use('/api/chicken-project', chickenProjectRoutes);
+app.use('/api/cow-project',     cowProjectRoutes);
+app.use('/api/fish-project',    fishProjectRoutes);
+app.use('/api/farm-dashboard', farmDashboardRoutes);
 
 
 

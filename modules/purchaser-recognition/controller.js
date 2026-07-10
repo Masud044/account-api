@@ -197,17 +197,31 @@ export const getSingleApproval = async (req, res) => {
   }
 };
 
+// export const updateApprovalStatus = async (req, res) => {
+//   try {
+//     const { formId } = req.params;
+//     const { status } = req.body; // { status: 'Approved' }
+//     const result = await service.updateApprovalStatus(formId, status);
+//     res.json({ success: true, data: result });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 export const updateApprovalStatus = async (req, res) => {
   try {
     const { formId } = req.params;
-    const { status } = req.body; // { status: 'Approved' }
-    const result = await service.updateApprovalStatus(formId, status);
+    const { status, reason } = req.body; // { status: 'Approved' | 'Rejected', reason?: string }
+
+    if (status === 'Rejected' && !reason?.trim()) {
+      return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
+    }
+
+    const result = await service.updateApprovalStatus(formId, status, reason?.trim() || null);
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 export const lockAction = async (req, res) => {
   try {
     const { formId } = req.params;
@@ -216,5 +230,15 @@ export const lockAction = async (req, res) => {
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const sendForApproval = async (req, res) => {
+  try {
+    const { formId } = req.params;
+    const result = await service.sendForApproval(formId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };

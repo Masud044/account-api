@@ -624,12 +624,12 @@ export const createPurchaseRecognition = async (data) => {
     FORM_ID, RECOGNITION_DATE, PO_NUMBER, INVOICE_NUMBER,
     DEPARTMENT, REQUESTED_BY, SUPPLIER_ID, VENDOR_NAME, CONTACT_PERSON,
     COST_CENTER_CODE, INVOICE_DATE, DESCRIPTION, PURCHASE_TYPE, CREATED_BY, CREATION_DATE,
-    INV_TYPE, PAYMENT_CODE
+    INV_TYPE, PAYMENT_CODE, STATUS
   ) VALUES (
     :formId, TO_DATE(:recognitionDate,'YYYY-MM-DD'), :poNumber, :invoiceNumber,
     :department, :requestedBy, :supplierId, :vendorName, :contactPerson,
     :costCenterCode, TO_DATE(:invoiceDate,'YYYY-MM-DD'), :description, :purchaseType, :createdBy, SYSDATE,
-    :invType, :paymentCode
+    :invType, :paymentCode, 1
   )`,
   {
     formId,
@@ -682,20 +682,20 @@ export const createPurchaseRecognition = async (data) => {
     }
 
     // 3. Insert Approval Tracking row (single status, starts Pending)
-    await conn.execute(
-      `INSERT INTO PURCHASE_APPROVAL_TRACKING (
-        FORM_ID, PO_NUMBER, VENDOR_NAME, TOTAL_AMOUNT, OVERALL_STATUS
-      ) VALUES (
-         :formId, :poNumber, :vendorName, :totalAmount, 'Pending'
-      )`,
-      {
-        formId,
-        poNumber,
-        vendorName: data.header.vendorName ?? null,
-        totalAmount,
-      },
-      { autoCommit: false }
-    );
+    // await conn.execute(
+    //   `INSERT INTO PURCHASE_APPROVAL_TRACKING (
+    //     FORM_ID, PO_NUMBER, VENDOR_NAME, TOTAL_AMOUNT, OVERALL_STATUS
+    //   ) VALUES (
+    //      :formId, :poNumber, :vendorName, :totalAmount, 'Pending'
+    //   )`,
+    //   {
+    //     formId,
+    //     poNumber,
+    //     vendorName: data.header.vendorName ?? null,
+    //     totalAmount,
+    //   },
+    //   { autoCommit: false }
+    // );
 
     await conn.commit();
     return { formId, poNumber, invoiceNumber, totalAmount };
@@ -724,9 +724,11 @@ export const getAllPurchaseRecognitions = async () => {
         h.PURCHASE_TYPE,
         h.ACTION_CREATED,
         h.CREATION_DATE,
+        h.STATUS,
         (SELECT COUNT(*) FROM PURCHASE_RECOGNITION_D d WHERE d.FORM_ID = h.FORM_ID) AS ITEM_COUNT,
         (SELECT NVL(SUM(TOTAL_PRICE),0) FROM PURCHASE_RECOGNITION_D d WHERE d.FORM_ID = h.FORM_ID) AS TOTAL_AMOUNT,
-        t.OVERALL_STATUS
+        t.OVERALL_STATUS,
+        t.REJECT_REASON
       FROM PURCHASE_RECOGNITION_H h
       LEFT JOIN PURCHASE_APPROVAL_TRACKING t ON t.FORM_ID = h.FORM_ID
       ORDER BY h.ID DESC
@@ -739,11 +741,41 @@ export const getAllPurchaseRecognitions = async () => {
 };
 
 // ─── GET SINGLE (header + items, for detail/edit view) ────────────────────────
+// export const getPurchaseRecognitionByFormId = async (formId) => {
+//   const conn = await getConnection();
+//   try {
+//     const hResult = await conn.execute(
+//       `SELECT * FROM PURCHASE_RECOGNITION_H WHERE FORM_ID = :formId`,
+//       { formId },
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
+//     const header = hResult.rows[0] ?? null;
+//     if (!header) return null;
+
+//     const dResult = await conn.execute(
+//       `SELECT d.*, i.NAME AS ITEM_NAME
+//          FROM PURCHASE_RECOGNITION_D d
+//          LEFT JOIN ITEM i ON i.ITEM_ID = d.ITEM_ID
+//         WHERE d.FORM_ID = :formId
+//         ORDER BY d.ITEM_NO ASC, d.ID ASC`,
+//       { formId },
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
+
+//     return { ...header, items: dResult.rows };
+//   } finally {
+//     await conn.close();
+//   }
+// };
+// ─── GET SINGLE (header + items, for detail/edit view) ────────────────────────
 export const getPurchaseRecognitionByFormId = async (formId) => {
   const conn = await getConnection();
   try {
     const hResult = await conn.execute(
-      `SELECT * FROM PURCHASE_RECOGNITION_H WHERE FORM_ID = :formId`,
+      `SELECT h.*, t.OVERALL_STATUS, t.REJECT_REASON, t.TOTAL_AMOUNT AS TRACKED_TOTAL_AMOUNT
+         FROM PURCHASE_RECOGNITION_H h
+         LEFT JOIN PURCHASE_APPROVAL_TRACKING t ON t.FORM_ID = h.FORM_ID
+        WHERE h.FORM_ID = :formId`,
       { formId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -765,13 +797,22 @@ export const getPurchaseRecognitionByFormId = async (formId) => {
     await conn.close();
   }
 };
-
 // ─── UPDATE (header fields + full item replace) ───────────────────────────────
 // PO_NUMBER is never regenerated/changed on update — it stays fixed once created.
 export const updatePurchaseRecognition = async (formId, data) => {
   // data: { header: {...}, items: [...], updatedBy }
   const conn = await getConnection();
+  
   try {
+    const statusCheck = await conn.execute(
+      `SELECT STATUS FROM PURCHASE_RECOGNITION_H WHERE FORM_ID = :formId`,
+      { formId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    if (!statusCheck.rows[0]) throw new Error('Purchase recognition form not found.');
+    if (Number(statusCheck.rows[0].STATUS) !== 1) {
+      throw new Error('Only draft forms can be edited.');
+    }
     const hResult = await conn.execute(
   `UPDATE PURCHASE_RECOGNITION_H
      SET RECOGNITION_DATE = TO_DATE(:recognitionDate,'YYYY-MM-DD'),
@@ -947,24 +988,63 @@ export const getApprovalTrackingByFormId = async (formId) => {
 };
 
 // ─── UPDATE STATUS (Pending → Approved / Rejected) ────────────────────────────
-export const updateApprovalStatus = async (formId, status) => {
-  if (!VALID_STATUSES.includes(status)) {
-    throw new Error(`Invalid status: ${status}`);
-  }
+// ─── UPDATE STATUS (Pending → Approved / Rejected) ────────────────────────────
+// export const updateApprovalStatus = async (formId, status, reason = null) => {
+//   if (!VALID_STATUSES.includes(status)) {
+//     throw new Error(`Invalid status: ${status}`);
+//   }
+//   if (status === 'Rejected' && !reason) {
+//     throw new Error('Rejection reason is required.');
+//   }
+
+//   const conn = await getConnection();
+//   try {
+//     const updateResult = await conn.execute(
+//       `UPDATE PURCHASE_APPROVAL_TRACKING
+//          SET OVERALL_STATUS = :status,
+//              REJECT_REASON  = :reason,
+//              UPDATED_DATE   = SYSDATE
+//        WHERE FORM_ID = :formId`,
+//       { status, reason, formId },
+//       { autoCommit: false }
+//     );
+//     if (updateResult.rowsAffected === 0) throw new Error('Approval tracking row not found.');
+
+//     await conn.commit();
+//     return { formId, status, reason };
+//   } catch (err) {
+//     await conn.rollback();
+//     throw err;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
+export const updateApprovalStatus = async (formId, status, reason = null) => {
+  if (!VALID_STATUSES.includes(status)) throw new Error(`Invalid status: ${status}`);
+  if (status === 'Rejected' && !reason) throw new Error('Rejection reason is required.');
 
   const conn = await getConnection();
   try {
     const updateResult = await conn.execute(
       `UPDATE PURCHASE_APPROVAL_TRACKING
-         SET OVERALL_STATUS = :status, UPDATED_DATE = SYSDATE
+         SET OVERALL_STATUS = :status, REJECT_REASON = :reason, UPDATED_DATE = SYSDATE
        WHERE FORM_ID = :formId`,
-      { status, formId },
+      { status, reason, formId },
       { autoCommit: false }
     );
     if (updateResult.rowsAffected === 0) throw new Error('Approval tracking row not found.');
 
+    // ✅ Sync header STATUS: Approved → 3, Rejected → back to 1 (Draft, so it can be edited & resent)
+    const headerStatus = status === 'Approved' ? 3 : status === 'Rejected' ? 1 : 2;
+    await conn.execute(
+      `UPDATE PURCHASE_RECOGNITION_H SET STATUS = :headerStatus WHERE FORM_ID = :formId`,
+      { headerStatus, formId },
+      { autoCommit: false }
+    );
+
     await conn.commit();
-    return { formId, status };
+    return { formId, status, reason };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -972,7 +1052,6 @@ export const updateApprovalStatus = async (formId, status) => {
     await conn.close();
   }
 };
-
 
 // ─── LOCK RECOGNITION (mark inventory/payment as already created) ───────────
 export const lockRecognitionAction = async (formId) => {
@@ -984,6 +1063,71 @@ export const lockRecognitionAction = async (formId) => {
       { autoCommit: true }
     );
     return { rowsAffected: result.rowsAffected };
+  } finally {
+    await conn.close();
+  }
+};
+
+// ─── SEND FOR APPROVAL (Draft → Waiting for Approval) ─────────────────────────
+export const sendForApproval = async (formId) => {
+  const conn = await getConnection();
+  try {
+    // Only allow from Draft (STATUS = 1)
+    const hResult = await conn.execute(
+      `SELECT PO_NUMBER, VENDOR_NAME, STATUS
+         FROM PURCHASE_RECOGNITION_H WHERE FORM_ID = :formId`,
+      { formId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const header = hResult.rows[0];
+    if (!header) throw new Error('Form not found.');
+    if (Number(header.STATUS) !== 1) throw new Error('Only draft forms can be sent for approval.');
+
+    const totalResult = await conn.execute(
+      `SELECT NVL(SUM(TOTAL_PRICE),0) AS TOTAL_AMOUNT
+         FROM PURCHASE_RECOGNITION_D WHERE FORM_ID = :formId`,
+      { formId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const totalAmount = totalResult.rows[0]?.TOTAL_AMOUNT ?? 0;
+
+    await conn.execute(
+      `UPDATE PURCHASE_RECOGNITION_H SET STATUS = 2 WHERE FORM_ID = :formId`,
+      { formId },
+      { autoCommit: false }
+    );
+
+    // Upsert-style: create tracking row if not exists, else reset to Pending
+    const existing = await conn.execute(
+      `SELECT ID FROM PURCHASE_APPROVAL_TRACKING WHERE FORM_ID = :formId`,
+      { formId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (existing.rows.length > 0) {
+      await conn.execute(
+        `UPDATE PURCHASE_APPROVAL_TRACKING
+           SET OVERALL_STATUS = 'Pending', REJECT_REASON = NULL,
+               TOTAL_AMOUNT = :totalAmount, UPDATED_DATE = SYSDATE
+         WHERE FORM_ID = :formId`,
+        { totalAmount, formId },
+        { autoCommit: false }
+      );
+    } else {
+      await conn.execute(
+        `INSERT INTO PURCHASE_APPROVAL_TRACKING (
+          FORM_ID, PO_NUMBER, VENDOR_NAME, TOTAL_AMOUNT, OVERALL_STATUS
+        ) VALUES (:formId, :poNumber, :vendorName, :totalAmount, 'Pending')`,
+        { formId, poNumber: header.PO_NUMBER, vendorName: header.VENDOR_NAME, totalAmount },
+        { autoCommit: false }
+      );
+    }
+
+    await conn.commit();
+    return { formId, status: 2 };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
   } finally {
     await conn.close();
   }

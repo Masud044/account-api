@@ -2,6 +2,12 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 
+import authV2Route from "./modules/auth-v2/auth-v2.routes.js";
+ 
+
+
+
+
 import receiptRoutes from "./modules/receipt/routes.js";
 import paymentRoutes from "./modules/payment/routes.js";
 import commonRoutes from "./modules/common/routes.js";
@@ -56,7 +62,7 @@ import requisitionRoutes from "./modules/requisition-master/requisition-master.r
 
 import chartOfAccountRoutes from "./modules/chart-account/route.js";
 
-import authV2Route from "./modules/auth-v2/auth-v2.routes.js";
+
 import userManagementRoutes from "./modules/user-management/user-management.routes.js";
 import empImageRoutes from "./modules/employee-image/employee-image.routes.js";
 
@@ -103,6 +109,20 @@ app.use(express.json());
 app.use(cors({
   origin: "*"
 }));
+
+
+app.use("/api/v2/auth", authV2Route); // login route — protect korar age
+
+app.get("/", async (_req, res) => {
+  res.send("Server running");
+});
+
+app.get("/health", async (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+
+
 
 
 app.use("/api/receipt", receiptRoutes);
@@ -195,12 +215,5 @@ app.use("/api/v2/auth", authV2Route);
 
 app.use("/api/report", saleExpenseReportRoute);
 
-app.get("/", async (_req, res) => {
-  res.send("Server running");
-});
-
-app.get("/health", async (_req, res) => {
-  res.json({ status: "ok" });
-});
 
 export default app;

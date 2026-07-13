@@ -244,38 +244,132 @@ export async function insertPayment(input) {
     }
   });
 }
+// export async function updatePayment(input) {
+//   return withConnection(async (connection) => {
+//     try {
+//       const uDate = currentMmDdYyyy();
+
+//       // ── 1. Update GLMASTER ───────────────────────────────────────────────────
+//      await connection.execute(
+//   `UPDATE GLMASTER
+//    SET trans_date     = TO_DATE(:td,'MM-DD-YYYY'),
+//        description    = :des,
+//        supporting     = :sup,
+//        customer_id    = :cust,
+     
+//        gl_entry_date  = TO_DATE(:gd,'MM-DD-YYYY'),
+//        inv_type       = :invtype,
+//        po_number      = :ponumber
+//    WHERE id = :id`,
+//   {
+//     td:   toMmDdYyyy(input.trans_date),
+//     des:  input.receive_desc,
+//     sup:  input.supporting,
+//     cust: input.supplierid,
+  
+//     gd:   toMmDdYyyy(input.gl_date),
+//     id:   input.masterID,
+//     invtype: input.inv_type ?? null,
+//     ponumber: input.po_number ?? null,   // 👈 নতুন
+//   },
+//   { autoCommit: false }
+// );
+
+//       // ── 2. Update existing debit rows ────────────────────────────────────────
+//       for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {
+//         await connection.execute(
+//           `UPDATE GLDETAILS
+//            SET debit           = :amt,
+//                code            = :acode,
+//                codedescription = :cdesc,
+//                description     = :ds,
+            
+//            WHERE id = :id`,
+//           {
+//             amt:   input.amount2?.[i],
+//             acode: input.acode?.[i] || "",
+//             cdesc: input.CODEDESCRIPTION?.[i] || "",
+//             ds:    input.DESCRIPTION?.[i] || "",
+      
+//             id:    input.DEBIT_ID[i],
+//           },
+//           { autoCommit: false }
+//         );
+//       }
+
+//       // ── 3. INSERT brand-new debit rows added during this edit session ────────
+//       //       These come from the frontend as NEW_ACODE / NEW_AMOUNT / etc.
+//       for (let i = 0; i < (input.NEW_ACODE || []).length; i++) {
+//         if (!input.NEW_ACODE[i]) continue;
+//         await connection.execute(
+//           `INSERT INTO GLDETAILS (glmasterid, code, debit, codedescription, description)
+//            VALUES(:mid, :code, :amt, :cdesc, :ds)`,
+//           {
+//             mid:   input.masterID,
+//             code:  input.NEW_ACODE[i],
+//             amt:   input.NEW_AMOUNT?.[i] || 0,
+//             cdesc: input.NEW_CODEDESCRIPTION?.[i] || "",
+//             ds:    input.NEW_DESCRIPTION?.[i] || "",
+           
+//           },
+//           { autoCommit: false }
+//         );
+//       }
+
+//       // ── 4. Update the credit row (payment account + total) ───────────────────
+//       await connection.execute(
+//         `UPDATE GLDETAILS
+//          SET credit      = :cr,
+//              code        = :pcode,
+            
+//          WHERE id = :cid`,
+//         {
+//           cr:    input.totalAmount,
+//           pcode: input.pcode,
+       
+//           cid:   input.credit_id,
+//         },
+//         { autoCommit: false }
+//       );
+
+//       await connection.commit();
+//       return { masterID: input.masterID };
+//     } catch (error) {
+//       await connection.rollback();
+//       throw error;
+//     }
+//   });
+// }
+
 export async function updatePayment(input) {
   return withConnection(async (connection) => {
     try {
-      const uDate = currentMmDdYyyy();
+      // ── 1. Update GLMASTER ───────────────────────────────────────────────
+      await connection.execute(
+        `UPDATE GLMASTER
+         SET trans_date     = TO_DATE(:td,'MM-DD-YYYY'),
+             description    = :des,
+             supporting     = :sup,
+             customer_id    = :cust,
+             gl_entry_date  = TO_DATE(:gd,'MM-DD-YYYY'),
+             inv_type       = :invtype,
+             po_number      = :ponumber,
+             UPDATE_DATE    = SYSDATE
+         WHERE id = :id`,
+        {
+          td:   toMmDdYyyy(input.trans_date),
+          des:  input.receive_desc,
+          sup:  input.supporting,
+          cust: input.supplierid,
+          gd:   toMmDdYyyy(input.gl_date),
+          id:   input.masterID,
+          invtype: input.inv_type ?? null,
+          ponumber: input.po_number ?? null,
+        },
+        { autoCommit: false }
+      );
 
-      // ── 1. Update GLMASTER ───────────────────────────────────────────────────
-     await connection.execute(
-  `UPDATE GLMASTER
-   SET trans_date     = TO_DATE(:td,'MM-DD-YYYY'),
-       description    = :des,
-       supporting     = :sup,
-       customer_id    = :cust,
-       update_date    = TO_DATE(:ud,'MM-DD-YYYY'),
-       gl_entry_date  = TO_DATE(:gd,'MM-DD-YYYY'),
-       inv_type       = :invtype,
-       po_number      = :ponumber
-   WHERE id = :id`,
-  {
-    td:   toMmDdYyyy(input.trans_date),
-    des:  input.receive_desc,
-    sup:  input.supporting,
-    cust: input.supplierid,
-    ud:   uDate,
-    gd:   toMmDdYyyy(input.gl_date),
-    id:   input.masterID,
-    invtype: input.inv_type ?? null,
-    ponumber: input.po_number ?? null,   // 👈 নতুন
-  },
-  { autoCommit: false }
-);
-
-      // ── 2. Update existing debit rows ────────────────────────────────────────
+      // ── 2. Update existing debit rows ─────────────────────────────────────
       for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {
         await connection.execute(
           `UPDATE GLDETAILS
@@ -283,50 +377,55 @@ export async function updatePayment(input) {
                code            = :acode,
                codedescription = :cdesc,
                description     = :ds,
-               update_date     = TO_DATE(:ud,'MM-DD-YYYY')
+               UPDATE_DATE    = SYSDATE
            WHERE id = :id`,
           {
             amt:   input.amount2?.[i],
             acode: input.acode?.[i] || "",
             cdesc: input.CODEDESCRIPTION?.[i] || "",
             ds:    input.DESCRIPTION?.[i] || "",
-            ud:    uDate,
             id:    input.DEBIT_ID[i],
           },
           { autoCommit: false }
         );
       }
 
-      // ── 3. INSERT brand-new debit rows added during this edit session ────────
-      //       These come from the frontend as NEW_ACODE / NEW_AMOUNT / etc.
+      // ── 3. DELETE removed debit rows FIRST (before inserting new ones) ────
+      if (input.DELETED_DEBIT_ID?.length) {
+        await connection.execute(
+          `DELETE FROM GLDETAILS WHERE id IN (${input.DELETED_DEBIT_ID.map((_, i) => `:d${i}`).join(",")})`,
+          Object.fromEntries(input.DELETED_DEBIT_ID.map((v, i) => [`d${i}`, v])),
+          { autoCommit: false }
+        );
+      }
+
+      // ── 4. INSERT brand-new debit rows (after delete, so codes are freed) ─
       for (let i = 0; i < (input.NEW_ACODE || []).length; i++) {
         if (!input.NEW_ACODE[i]) continue;
         await connection.execute(
-          `INSERT INTO GLDETAILS (glmasterid, code, debit, codedescription, description, update_date)
-           VALUES(:mid, :code, :amt, :cdesc, :ds, TO_DATE(:ud,'MM-DD-YYYY'))`,
+          `INSERT INTO GLDETAILS (glmasterid, code, debit, codedescription, description)
+           VALUES(:mid, :code, :amt, :cdesc, :ds)`,
           {
             mid:   input.masterID,
             code:  input.NEW_ACODE[i],
             amt:   input.NEW_AMOUNT?.[i] || 0,
             cdesc: input.NEW_CODEDESCRIPTION?.[i] || "",
             ds:    input.NEW_DESCRIPTION?.[i] || "",
-            ud:    uDate,
           },
           { autoCommit: false }
         );
       }
 
-      // ── 4. Update the credit row (payment account + total) ───────────────────
+      // ── 5. Update the credit row ────────────────────────────────────────
       await connection.execute(
         `UPDATE GLDETAILS
-         SET credit      = :cr,
-             code        = :pcode,
-             update_date = TO_DATE(:ud,'MM-DD-YYYY')
+         SET credit = :cr,
+             code   = :pcode
+             UPDATE_DATE    = SYSDATE
          WHERE id = :cid`,
         {
           cr:    input.totalAmount,
           pcode: input.pcode,
-          ud:    uDate,
           cid:   input.credit_id,
         },
         { autoCommit: false }
@@ -339,9 +438,7 @@ export async function updatePayment(input) {
       throw error;
     }
   });
-}
-
-export async function deletePayment(masterID) {
+}export async function deletePayment(masterID) {
   return withConnection(async (connection) => {
     try {
       await connection.execute(

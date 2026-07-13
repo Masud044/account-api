@@ -206,7 +206,7 @@ await connection.execute(
     supporting    = :sup,
 
     customer_id   = :cust,
-    update_date   = TO_DATE(:ud, 'MM-DD-YYYY'),
+   
     gl_entry_date = TO_DATE(:gd, 'MM-DD-YYYY'),
     inv_type      = :invtype,
     sale_invoice_no = :saleinvno
@@ -238,7 +238,7 @@ await connection.execute(
               code            = :acode,
               codedescription = :cdesc,
               description     = :ds,
-              update_date     = TO_DATE(:ud, 'MM-DD-YYYY')
+             
             WHERE id = :id`,
             {
               amt:   input.amount2?.[i]          || 0,
@@ -276,7 +276,7 @@ await connection.execute(
           debit       = :dr,        
           credit      = 0,          
           code        = :pcode,
-          update_date = TO_DATE(:ud, 'MM-DD-YYYY')
+        
         WHERE id = :cid`,
         {
           dr:    input.totalAmount,

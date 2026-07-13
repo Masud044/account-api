@@ -7,12 +7,12 @@ export const createChickenProject = async (data) => {
   try {
     const result = await conn.execute(
       `INSERT INTO CHICKEN_PROJECT (
-        CHICKEN_NUMBER, FROM_DATE, TODATE, LOT, DESCRIPTION
+        CHICKEN_NUMBER, FROM_DATE, TODATE, LOT, DESCRIPTION, CREATION_BY
       ) VALUES (
         :chickenNumber,
         TO_DATE(:fromDate, 'YYYY-MM-DD'),
         TO_DATE(:toDate, 'YYYY-MM-DD'),
-        :lot, :description
+        :lot, :description,:creationBy
       ) RETURNING ID INTO :outId`,
       {
         chickenNumber: data.chickenNumber ?? null,
@@ -20,6 +20,7 @@ export const createChickenProject = async (data) => {
         toDate:        data.toDate ?? null,
         lot:            data.lot ?? null,
         description:    data.description ?? null,
+        creationBy: data.creationBy ?? null,
         outId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
       },
       { autoCommit: false }
@@ -90,7 +91,9 @@ export const updateChickenProject = async (id, data) => {
              FROM_DATE       = TO_DATE(:fromDate, 'YYYY-MM-DD'),
              TODATE          = TO_DATE(:toDate, 'YYYY-MM-DD'),
              LOT             = :lot,
-             DESCRIPTION     = :description
+             DESCRIPTION     = :description,
+             UPDATE_BY       = :updateBy,
+             UPDATE_DATE     = SYSDATE
        WHERE ID = :id`,
       {
         chickenNumber: data.chickenNumber ?? null,
@@ -98,6 +101,7 @@ export const updateChickenProject = async (id, data) => {
         toDate:        data.toDate ?? null,
         lot:            data.lot ?? null,
         description:    data.description ?? null,
+        updateBy:       data.updateBy ?? null,
         id,
       },
       { autoCommit: false }

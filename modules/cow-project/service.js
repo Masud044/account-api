@@ -7,13 +7,13 @@ export const createCowProject = async (data) => {
   try {
     const result = await conn.execute(
       `INSERT INTO COW_PROJECT (
-        COW_NUMBER, PURCHASE_DATE, SELLING_DATE, PURCHASE_AMT, SELLING_AMT, WEIGHT, STATUS
+        COW_NUMBER, PURCHASE_DATE, SELLING_DATE, PURCHASE_AMT, SELLING_AMT, WEIGHT, STATUS, CREATION_BY
       ) VALUES (
         :cowNumber,
         TO_DATE(:purchaseDate, 'YYYY-MM-DD'),
         TO_DATE(:sellingDate, 'YYYY-MM-DD'),
         :purchaseAmt, :sellingAmt, :weight,
-        :status
+        1, :creationBy
       ) RETURNING ID INTO :outId`,
       {
         cowNumber:    data.cowNumber ?? null,
@@ -22,7 +22,7 @@ export const createCowProject = async (data) => {
         purchaseAmt:  data.purchaseAmt ?? null,
         sellingAmt:   data.sellingAmt ?? null,
         weight:       data.weight ?? null,
-        status:       data.status ?? 1,
+        creationBy:    data.creationBy ?? null,
         outId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
       },
       { autoCommit: false }
@@ -99,7 +99,9 @@ export const updateCowProject = async (id, data) => {
              PURCHASE_AMT  = :purchaseAmt,
              SELLING_AMT   = :sellingAmt,
              WEIGHT        = :weight,
-             STATUS        = :status
+             STATUS        = 1,
+             UPDATE_BY   = :updateBy,
+             UPDATE_DATE  = SYSDATE
        WHERE ID = :id`,
       {
         cowNumber:    data.cowNumber ?? null,
@@ -108,7 +110,7 @@ export const updateCowProject = async (id, data) => {
         purchaseAmt:  data.purchaseAmt ?? null,
         sellingAmt:   data.sellingAmt ?? null,
         weight:       data.weight ?? null,
-        status:       data.status ?? 1,
+        updateBy:      data.updateBy?? null,
         id,
       },
       { autoCommit: false }

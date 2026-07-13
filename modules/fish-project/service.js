@@ -7,14 +7,15 @@ export const createFishProject = async (data) => {
   try {
     const result = await conn.execute(
       `INSERT INTO FISH_PROJECT (
-        LOT, FISH_NUMBER, FISH_TYPE
+        LOT, FISH_NUMBER, FISH_TYPE,CREATION_BY
       ) VALUES (
-        :lot, :fishNumber, :fishType
+        :lot, :fishNumber, :fishType, :creationBy
       ) RETURNING ID INTO :outId`,
       {
         lot:        data.lot ?? null,
         fishNumber: data.fishNumber ?? null,
         fishType:   data.fishType ?? null,
+        creationBy: data.creationBy?? null,
         outId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
       },
       { autoCommit: false }
@@ -79,12 +80,15 @@ export const updateFishProject = async (id, data) => {
       `UPDATE FISH_PROJECT
          SET LOT         = :lot,
              FISH_NUMBER = :fishNumber,
-             FISH_TYPE   = :fishType
+             FISH_TYPE   = :fishType,
+             UPDATE_DATE = SYSDATE,
+             UPDATE_BY   = :updateBy
        WHERE ID = :id`,
       {
         lot:        data.lot ?? null,
         fishNumber: data.fishNumber ?? null,
         fishType:   data.fishType ?? null,
+        updateBy:   data.updateBy?? null,
         id,
       },
       { autoCommit: false }

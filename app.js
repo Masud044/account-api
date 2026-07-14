@@ -84,6 +84,11 @@ import chickenProjectRoutes from './modules/chicken-project/route.js';
 import cowProjectRoutes     from './modules/cow-project/route.js';
 import fishProjectRoutes    from './modules/fish-project/route.js';
 import farmDashboardRoutes from './modules/dashboard-farm/route.js';
+import glTrialBalanceRoutes from './modules/trail-balance-report/route.js';
+import generalLedgerRoutes from './modules/general-ledger-report/route.js';
+import cashFlowRoutes from './modules/cash-flow-statement-report/route.js';
+import incomeStatementRoutes from './modules/income-expense-report/route.js';
+
 
 
 
@@ -205,6 +210,14 @@ app.use('/api/cow-project',     cowProjectRoutes);
 app.use('/api/fish-project',    fishProjectRoutes);
 app.use('/api/farm-dashboard', farmDashboardRoutes);
 
+
+
+app.use('/api/trial-balance', glTrialBalanceRoutes);
+app.use('/api/general-ledger', generalLedgerRoutes);
+
+app.use('/api', cashFlowRoutes);
+
+app.use('/api', incomeStatementRoutes);
 
 
 app.use("/api/users", userManagementRoutes);

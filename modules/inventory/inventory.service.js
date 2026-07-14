@@ -517,11 +517,11 @@ export const createInventory = async (data) => {
       INSERT INTO INVENTORIES (
         HID, INVQTY, ITEM, PRICE, INVTDATE, INVSTATUS, INVOICE_STATUS,
         ITEMTYPE, ACCOUNTED, UNIT, UNIT_PRICE, UNIT_ID,
-        SELLING_UNIT_PRICE, INVENTORY_TYPE, RECEIVE_QTY
+        SELLING_UNIT_PRICE, INVENTORY_TYPE, RECEIVE_QTY, CREATION_BY
       ) VALUES (
         :hid, :invQty, :item, :price, :invtDate, :invStatus, :invoiceStatus,
         :itemType, :accounted, :unit, :unitPrice, :unitId,
-        :sellingUnitPrice, :inventoryType, :receiveQty
+        :sellingUnitPrice, :inventoryType, :receiveQty, :creationBy
       )
     `;
 
@@ -537,11 +537,12 @@ export const createInventory = async (data) => {
         itemType:         it.itemType         ?? null,
         accounted:        it.accounted        ?? null,
         unit:             it.unit             ?? null,
-        unitPrice:        it.unitPrice != null ? String(it.unitPrice) : null, // VARCHAR2 column
+        unitPrice:        it.unitPrice != null ? String(it.unitPrice) : null,
         unitId:           it.unitId           ?? null,
         sellingUnitPrice: it.sellingUnitPrice ?? null,
         inventoryType:    it.inventoryType    ?? null,
         receiveQty:       it.receiveQty       ?? null,
+        creationBy:       data.creationBy     ?? null,   // ← header-er creationBy use koro, line-level na
       };
       await conn.execute(lineSql, lineBinds, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
     }
@@ -555,7 +556,6 @@ export const createInventory = async (data) => {
     await conn.close();
   }
 };
-
 // ═══════════════════════════════════════════════════════════════
 // UPDATE — header update + diff-based upsert of line items
 // data = { invDate, storeId, poNo, grnNo, supplierId?, updateBy?, items: [{ tid?, ... }] }
@@ -620,6 +620,7 @@ export const updateInventory = async (hid, data) => {
         SELLING_UNIT_PRICE = :sellingUnitPrice,
         INVENTORY_TYPE     = :inventoryType,
         RECEIVE_QTY        = :receiveQty,
+        UPDATE_BY          = :updateBy,
         UPDATE_DATE        = SYSDATE
       WHERE TID = :tid
     `;
@@ -627,11 +628,11 @@ export const updateInventory = async (hid, data) => {
       INSERT INTO INVENTORIES (
         HID, INVQTY, ITEM, PRICE, INVTDATE, INVSTATUS, INVOICE_STATUS,
         ITEMTYPE, ACCOUNTED, UNIT, UNIT_PRICE, UNIT_ID,
-        SELLING_UNIT_PRICE, INVENTORY_TYPE, RECEIVE_QTY
+        SELLING_UNIT_PRICE, INVENTORY_TYPE, RECEIVE_QTY, CREATION_BY
       ) VALUES (
         :hid, :invQty, :item, :price, :invtDate, :invStatus, :invoiceStatus,
         :itemType, :accounted, :unit, :unitPrice, :unitId,
-        :sellingUnitPrice, :inventoryType, :receiveQty
+        :sellingUnitPrice, :inventoryType, :receiveQty, :creationBy
       )
     `;
 
@@ -654,9 +655,17 @@ export const updateInventory = async (hid, data) => {
       };
 
       if (it.tid) {
-        await conn.execute(updateSql, { ...lineBinds, tid: Number(it.tid) }, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
+        await conn.execute(updateSql, {
+          ...lineBinds,
+          tid: Number(it.tid),
+          updateBy: data.updateBy ?? null,          // ← existing row → UPDATE_BY set hobe
+        }, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
       } else {
-        await conn.execute(insertSql, { ...lineBinds, hid }, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
+        await conn.execute(insertSql, {
+          ...lineBinds,
+          hid,
+          creationBy: data.updateBy ?? null,        // ← notun row → CREATION_BY = jini update korche
+        }, { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT });
       }
     }
 
@@ -669,7 +678,9 @@ export const updateInventory = async (hid, data) => {
     await conn.close();
   }
 };
-
+// ═══════════════════════════════════════════════════════════════
+// LIST — header level, joined with store, aggregated item count/qty
+// ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
 // LIST — header level, joined with store, aggregated item count/qty
 // ═══════════════════════════════════════════════════════════════
@@ -690,8 +701,11 @@ export const getAllInventories = async ({ page = 1, limit = 20 } = {}) => {
             h.PO_NO,
             h.INVOICE_NUMBER,
             h.SUPPLIER_ID,
+            h.PAYMENT_CREATED,
             h.CREATION_DATE,
+            h.CREATION_BY,
             h.UPDATED_DATE,
+            h.UPDATE_BY,
             st.STORE_NAME,
             st.LOCATION       AS STORE_LOCATION,
             COUNT(inv.TID)    AS ITEM_COUNT,
@@ -700,8 +714,9 @@ export const getAllInventories = async ({ page = 1, limit = 20 } = {}) => {
           LEFT JOIN INVENTORIES inv ON inv.HID = h.ID
           LEFT JOIN STORES st       ON h.STORE_ID = st.STORE_ID
           GROUP BY h.ID, h.INV_DATE, h.STORE_ID, h.GRN_NO, h.PO_NO,
-                   h.INVOICE_NUMBER, h.SUPPLIER_ID,
-                   h.CREATION_DATE, h.UPDATED_DATE, st.STORE_NAME, st.LOCATION
+                   h.INVOICE_NUMBER, h.SUPPLIER_ID, h.PAYMENT_CREATED,
+                   h.CREATION_DATE, h.CREATION_BY, h.UPDATED_DATE, h.UPDATE_BY,
+                   st.STORE_NAME, st.LOCATION
           ORDER BY h.ID DESC
         ) g
       )
@@ -713,7 +728,6 @@ export const getAllInventories = async ({ page = 1, limit = 20 } = {}) => {
     await conn.close();
   }
 };
-
 // ═══════════════════════════════════════════════════════════════
 // GET SINGLE — header + full line items array (with item/uom/stock joins)
 // ═══════════════════════════════════════════════════════════════
@@ -722,7 +736,7 @@ export const getInventoryById = async (hid) => {
   try {
     const hSql = `
       SELECT h.ID AS HID, h.INV_DATE, h.STORE_ID, h.GRN_NO, h.PO_NO,
-             h.INVOICE_NUMBER, h.SUPPLIER_ID,
+             h.INVOICE_NUMBER, h.SUPPLIER_ID,h.PAYMENT_CREATED,
              h.CREATION_DATE, h.CREATION_BY, h.UPDATED_DATE, h.UPDATE_BY,
              st.STORE_NAME, st.LOCATION AS STORE_LOCATION
       FROM INVENTORY_H h
@@ -783,6 +797,23 @@ export const deleteInventory = async (hid) => {
   } catch (err) {
     await conn.rollback();
     throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// LOCK — Payment Voucher create hobar por inventory lock kore
+// ═══════════════════════════════════════════════════════════════
+export const lockInventoryForPayment = async (hid) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `UPDATE INVENTORY_H SET PAYMENT_CREATED = 1 WHERE ID = :hid`,
+      { hid },
+      { autoCommit: true }
+    );
+    return { rowsAffected: result.rowsAffected };
   } finally {
     await conn.close();
   }

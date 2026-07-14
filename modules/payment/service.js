@@ -420,7 +420,7 @@ export async function updatePayment(input) {
       await connection.execute(
         `UPDATE GLDETAILS
          SET credit = :cr,
-             code   = :pcode
+             code   = :pcode,
              UPDATE_DATE    = SYSDATE
          WHERE id = :cid`,
         {

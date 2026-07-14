@@ -155,3 +155,14 @@ export const remove = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// inventory.controller.js
+export const lockInventory = async (req, res) => {
+  try {
+    const { hid } = req.params;
+    const result = await inventoryService.lockInventoryForPayment(hid);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

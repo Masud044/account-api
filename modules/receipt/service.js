@@ -59,10 +59,10 @@ export async function insertReceipt(input) {
       //   { autoCommit: false }
       // );
 
-      await connection.execute(
+    await connection.execute(
   `INSERT INTO GLMASTER
-  (trans_date, voucher_type, description, supporting, voucherno, cashaccount, customer_id, gl_entry_date, posted, inv_type, sale_invoice_no)
-  VALUES(TO_DATE(:tdate,'MM-DD-YYYY'), 1, :des, :sup, :vno, :cash, :cust, TO_DATE(:gld,'MM-DD-YYYY'), 0, :invtype, :saleinvno)`,
+  (trans_date, voucher_type, description, supporting, voucherno, cashaccount, customer_id, gl_entry_date, posted, inv_type, sale_invoice_no, entry_by)
+  VALUES(TO_DATE(:tdate,'MM-DD-YYYY'), 1, :des, :sup, :vno, :cash, :cust, TO_DATE(:gld,'MM-DD-YYYY'), 0, :invtype, :saleinvno, :entryby)`,
   {
     tdate: toMmDdYyyy(input.trans_date),
     des: input.receive_desc,
@@ -73,6 +73,7 @@ export async function insertReceipt(input) {
     gld: toMmDdYyyy(input.gl_date),
     invtype: input.inv_type ?? null,
     saleinvno: input.sale_invoice_no ?? null,
+    entryby: input.entry_by ?? null,
   },
   { autoCommit: false }
 );
@@ -204,52 +205,52 @@ await connection.execute(
     trans_date    = TO_DATE(:td, 'MM-DD-YYYY'),
     description   = :des,
     supporting    = :sup,
-
     customer_id   = :cust,
-   
     gl_entry_date = TO_DATE(:gd, 'MM-DD-YYYY'),
     inv_type      = :invtype,
-    sale_invoice_no = :saleinvno
+    sale_invoice_no = :saleinvno,
+    update_by     = :updateby,
+    UPDATE_DATE   = SYSDATE
   WHERE id = :id`,
   {
     td:   toMmDdYyyy(input.trans_date),
     des:  input.receive_desc,
     sup:  input.supporting,
     cust: input.supplierid,
-    ud:   uDate,
     gd:   toMmDdYyyy(input.gl_date),
     id:   input.masterID,
     invtype: input.inv_type ?? null,
     saleinvno: input.sale_invoice_no ?? null,
+    updateby: input.update_by ?? null,
   },
   { autoCommit: false }
 );
-
       // ── 2. Update CREDIT rows (account rows) ───────────────────────
       for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {
         const rowId = input.DEBIT_ID[i];
 
         if (rowId && Number.isInteger(Number(rowId))) {
           // Existing row → UPDATE
-          await connection.execute(
-            `UPDATE GLDETAILS SET
-              credit          = :amt,       
-              debit           = 0,          
-              code            = :acode,
-              codedescription = :cdesc,
-              description     = :ds,
-             
-            WHERE id = :id`,
-            {
-              amt:   input.amount2?.[i]          || 0,
-              acode: input.acode?.[i]            || "",
-              cdesc: input.CODEDESCRIPTION?.[i]  || "",
-              ds:    input.DESCRIPTION?.[i]      || "",
-              ud:    uDate,
-              id:    Number(rowId),
-            },
-            { autoCommit: false }
-          );
+        await connection.execute(
+  `UPDATE GLDETAILS SET
+    credit          = :amt,
+    debit           = 0,
+    code            = :acode,
+    codedescription = :cdesc,
+    description     = :ds,
+    update_by       = :updateby,
+    UPDATE_DATE     = SYSDATE
+  WHERE id = :id`,
+  {
+    amt:   input.amount2?.[i]          || 0,
+    acode: input.acode?.[i]            || "",
+    cdesc: input.CODEDESCRIPTION?.[i]  || "",
+    ds:    input.DESCRIPTION?.[i]      || "",
+    updateby: input.update_by ?? null,
+    id:    Number(rowId),
+  },
+  { autoCommit: false }
+);
         } else {
           // New row added during edit → INSERT
           await connection.execute(
@@ -271,22 +272,22 @@ await connection.execute(
 
       // ── 3. Update DEBIT row (payment code row) ─────────────────────
       // ✅ debit = totalAmount (not credit!)
-      await connection.execute(
-        `UPDATE GLDETAILS SET
-          debit       = :dr,        
-          credit      = 0,          
-          code        = :pcode,
-        
-        WHERE id = :cid`,
-        {
-          dr:    input.totalAmount,
-          pcode: input.pcode,
-          ud:    uDate,
-          cid:   input.credit_id,
-        },
-        { autoCommit: false }
-      );
-
+    await connection.execute(
+  `UPDATE GLDETAILS SET
+    debit       = :dr,
+    credit      = 0,
+    code        = :pcode,
+    update_by   = :updateby,
+    UPDATE_DATE = SYSDATE
+  WHERE id = :cid`,
+  {
+    dr:    input.totalAmount,
+    pcode: input.pcode,
+    updateby: input.update_by ?? null,
+    cid:   input.credit_id,
+  },
+  { autoCommit: false }
+);
       await connection.commit();
       return { masterID: input.masterID };
 

@@ -300,13 +300,54 @@ const getPreviousWeightDate = async (conn, cowNo, weightDate, excludeId = null) 
   return result.rows[0]?.LAST_DATE ?? null;
 };
 
+// export const createCowWeight = async (data) => {
+//   const conn = await getConnection();
+//   try {
+//     const lastDate = await getPreviousWeightDate(conn, data.cowNo, data.weightDate);
+//     const intervalDays = lastDate
+//       ? Math.round((new Date(data.weightDate) - new Date(lastDate)) / (1000 * 60 * 60 * 24))
+//       : null;
+
+//     const result = await conn.execute(
+//       `INSERT INTO COW_PROJECT_WEIGHT (
+//         COW_NO, WEIGT_DATE, WEIGHT, INTERVAL_DAYS
+//       ) VALUES (
+//         :cowNo, TO_DATE(:weightDate, 'YYYY-MM-DD'), :weight, :intervalDays
+//       ) RETURNING ID INTO :outId`,
+//       {
+//         cowNo:        data.cowNo ?? null,
+//         weightDate:   data.weightDate ?? null,
+//         weight:       data.weight ?? null,
+//         intervalDays,
+//         outId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+//       },
+//       { autoCommit: false }
+//     );
+//     await conn.commit();
+//     return { id: result.outBinds.outId[0], intervalDays };
+//   } catch (err) {
+//     await conn.rollback();
+//     throw err;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
+
 export const createCowWeight = async (data) => {
   const conn = await getConnection();
   try {
-    const lastDate = await getPreviousWeightDate(conn, data.cowNo, data.weightDate);
-    const intervalDays = lastDate
-      ? Math.round((new Date(data.weightDate) - new Date(lastDate)) / (1000 * 60 * 60 * 24))
-      : null;
+    let intervalDays;
+    if (data.intervalDays !== undefined && data.intervalDays !== null && data.intervalDays !== '') {
+      // Manual override from frontend
+      intervalDays = Number(data.intervalDays);
+    } else {
+      // Auto-calculate from previous weight entry
+      const lastDate = await getPreviousWeightDate(conn, data.cowNo, data.weightDate);
+      intervalDays = lastDate
+        ? Math.round((new Date(data.weightDate) - new Date(lastDate)) / (1000 * 60 * 60 * 24))
+        : null;
+    }
 
     const result = await conn.execute(
       `INSERT INTO COW_PROJECT_WEIGHT (
@@ -332,7 +373,6 @@ export const createCowWeight = async (data) => {
     await conn.close();
   }
 };
-
 export const getAllCowWeights = async () => {
   const conn = await getConnection();
   try {
@@ -391,13 +431,56 @@ export const getCowWeightById = async (id) => {
   }
 };
 
+// export const updateCowWeight = async (id, data) => {
+//   const conn = await getConnection();
+//   try {
+//     const lastDate = await getPreviousWeightDate(conn, data.cowNo, data.weightDate, id);
+//     const intervalDays = lastDate
+//       ? Math.round((new Date(data.weightDate) - new Date(lastDate)) / (1000 * 60 * 60 * 24))
+//       : null;
+
+//     const result = await conn.execute(
+//       `UPDATE COW_PROJECT_WEIGHT
+//          SET COW_NO        = :cowNo,
+//              WEIGT_DATE    = TO_DATE(:weightDate, 'YYYY-MM-DD'),
+//              WEIGHT        = :weight,
+//              INTERVAL_DAYS = :intervalDays
+//        WHERE ID = :id`,
+//       {
+//         cowNo:      data.cowNo ?? null,
+//         weightDate: data.weightDate ?? null,
+//         weight:     data.weight ?? null,
+//         intervalDays,
+//         id,
+//       },
+//       { autoCommit: false }
+//     );
+//     if (result.rowsAffected === 0) throw new Error('Weight record not found.');
+//     await conn.commit();
+//     return { id, rowsAffected: result.rowsAffected, intervalDays };
+//   } catch (err) {
+//     await conn.rollback();
+//     throw err;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
+
 export const updateCowWeight = async (id, data) => {
   const conn = await getConnection();
   try {
-    const lastDate = await getPreviousWeightDate(conn, data.cowNo, data.weightDate, id);
-    const intervalDays = lastDate
-      ? Math.round((new Date(data.weightDate) - new Date(lastDate)) / (1000 * 60 * 60 * 24))
-      : null;
+    let intervalDays;
+    if (data.intervalDays !== undefined && data.intervalDays !== null && data.intervalDays !== '') {
+      // Manual override from frontend
+      intervalDays = Number(data.intervalDays);
+    } else {
+      // Auto-calculate from previous weight entry
+      const lastDate = await getPreviousWeightDate(conn, data.cowNo, data.weightDate, id);
+      intervalDays = lastDate
+        ? Math.round((new Date(data.weightDate) - new Date(lastDate)) / (1000 * 60 * 60 * 24))
+        : null;
+    }
 
     const result = await conn.execute(
       `UPDATE COW_PROJECT_WEIGHT
@@ -425,7 +508,6 @@ export const updateCowWeight = async (id, data) => {
     await conn.close();
   }
 };
-
 export const deleteCowWeight = async (id) => {
   const conn = await getConnection();
   try {

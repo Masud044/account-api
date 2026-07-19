@@ -89,6 +89,11 @@ import generalLedgerRoutes from './modules/general-ledger-report/route.js';
 import cashFlowRoutes from './modules/cash-flow-statement-report/route.js';
 import incomeStatementRoutes from './modules/income-expense-report/route.js';
 
+import farmCalendarRoutes from './modules/farm-calendar/route.js';
+import farmActivityLogRoutes from './modules/farm-activity-Log/route.js';
+import farmTypeRoutes from './modules/farm-type-mist/route.js';
+
+
 
 
 
@@ -216,8 +221,12 @@ app.use('/api/trial-balance', glTrialBalanceRoutes);
 app.use('/api/general-ledger', generalLedgerRoutes);
 
 app.use('/api', cashFlowRoutes);
-
 app.use('/api', incomeStatementRoutes);
+
+app.use('/api/farm-calendar', farmCalendarRoutes);
+app.use('/api/farm-activity-log', farmActivityLogRoutes);
+app.use('/api/farm-type', farmTypeRoutes);
+
 
 
 app.use("/api/users", userManagementRoutes);

@@ -50,6 +50,28 @@ export async function getCustomers(customerId) {
   }
 }
 
+// export async function updateCustomer(data) {
+//   const connection = await getConnection();
+//   try {
+//     const set = [];
+//     const binds = { customer_id_bv: data.CUSTOMER_ID };
+//     for (const [key, value] of Object.entries(data)) {
+//       const upper = key.toUpperCase();
+//       if (upper !== "CUSTOMER_ID" && value !== null) {
+//         const placeholder = `${key.toLowerCase()}_bv`;
+//         set.push(`${upper} = :${placeholder}`);
+//         binds[placeholder] = value;
+//       }
+//     }
+//     set.push("UPDATE_DATE = SYSDATE");
+//     const sql = `UPDATE CUSTOMER_INFO SET ${set.join(", ")} WHERE CUSTOMER_ID = :customer_id_bv`;
+//     const result = await connection.execute(sql, binds, { autoCommit: true });
+//     return result.rowsAffected;
+//   } finally {
+//     await connection.close();
+//   }
+// }
+
 export async function updateCustomer(data) {
   const connection = await getConnection();
   try {
@@ -57,13 +79,17 @@ export async function updateCustomer(data) {
     const binds = { customer_id_bv: data.CUSTOMER_ID };
     for (const [key, value] of Object.entries(data)) {
       const upper = key.toUpperCase();
-      if (upper !== "CUSTOMER_ID" && value !== null) {
+      if (upper !== "CUSTOMER_ID" && upper !== "UPDATE_BY" && value !== null) {
         const placeholder = `${key.toLowerCase()}_bv`;
         set.push(`${upper} = :${placeholder}`);
         binds[placeholder] = value;
       }
     }
+    set.push("UPDATE_BY = :update_by_bv");
+    binds.update_by_bv = data.UPDATE_BY ?? null;
+
     set.push("UPDATE_DATE = SYSDATE");
+
     const sql = `UPDATE CUSTOMER_INFO SET ${set.join(", ")} WHERE CUSTOMER_ID = :customer_id_bv`;
     const result = await connection.execute(sql, binds, { autoCommit: true });
     return result.rowsAffected;

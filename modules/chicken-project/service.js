@@ -380,9 +380,16 @@ export const getAllChickenProjects = async () => {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `SELECT ID, CHICKEN_NUMBER, LOT, DESCRIPTION, SHADE
-       FROM CHICKEN_PROJECT
-       ORDER BY ID DESC`,
+      `SELECT
+         cp.ID, cp.LOT, cp.DESCRIPTION, cp.SHADE,
+         NVL((
+           SELECT SUM(d.QTY)
+           FROM CHICKEN_PROJECT_DETAILS d
+           WHERE d.H_ID = cp.ID
+             AND TRUNC(SYSDATE) BETWEEN TRUNC(d.FROM_DATE) AND TRUNC(d.TO_DATE)
+         ), 0) AS CHICKEN_NUMBER
+       FROM CHICKEN_PROJECT cp
+       ORDER BY cp.ID DESC`,
       {},
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -396,9 +403,16 @@ export const getChickenProjectById = async (id) => {
   const conn = await getConnection();
   try {
     const result = await conn.execute(
-      `SELECT ID, CHICKEN_NUMBER, LOT, DESCRIPTION, SHADE
-       FROM CHICKEN_PROJECT
-       WHERE ID = :id`,
+      `SELECT
+         cp.ID, cp.LOT, cp.DESCRIPTION, cp.SHADE,
+         NVL((
+           SELECT SUM(d.QTY)
+           FROM CHICKEN_PROJECT_DETAILS d
+           WHERE d.H_ID = cp.ID
+             AND TRUNC(SYSDATE) BETWEEN TRUNC(d.FROM_DATE) AND TRUNC(d.TO_DATE)
+         ), 0) AS CHICKEN_NUMBER
+       FROM CHICKEN_PROJECT cp
+       WHERE cp.ID = :id`,
       { id },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -407,6 +421,7 @@ export const getChickenProjectById = async (id) => {
     await conn.close();
   }
 };
+
 
 export const updateChickenProject = async (id, data) => {
   const conn = await getConnection();

@@ -93,6 +93,8 @@ import farmCalendarRoutes from './modules/farm-calendar/route.js';
 import farmActivityLogRoutes from './modules/farm-activity-Log/route.js';
 import farmTypeRoutes from './modules/farm-type-mist/route.js';
 
+import farmBudgetRoutes from './modules/farm-budget/route.js';
+
 
 
 
@@ -226,6 +228,8 @@ app.use('/api', incomeStatementRoutes);
 app.use('/api/farm-calendar', farmCalendarRoutes);
 app.use('/api/farm-activity-log', farmActivityLogRoutes);
 app.use('/api/farm-type', farmTypeRoutes);
+
+app.use('/api/farm-budget', farmBudgetRoutes);
 
 
 

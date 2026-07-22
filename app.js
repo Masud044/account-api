@@ -94,6 +94,7 @@ import farmActivityLogRoutes from './modules/farm-activity-log/route.js';
 import farmTypeRoutes from './modules/farm-type-mist/route.js';
 
 import farmBudgetRoutes from './modules/farm-budget/route.js';
+import dashboardDebitRoutes from './modules/dashboard-debit/route.js';
 
 
 
@@ -230,6 +231,8 @@ app.use('/api/farm-activity-log', farmActivityLogRoutes);
 app.use('/api/farm-type', farmTypeRoutes);
 
 app.use('/api/farm-budget', farmBudgetRoutes);
+app.use('/api/gl-report', dashboardDebitRoutes);
+
 
 
 

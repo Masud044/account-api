@@ -345,7 +345,7 @@ export async function updatePayment(input) {
   return withConnection(async (connection) => {
     try {
       // ── 1. Update GLMASTER ───────────────────────────────────────────────
-    await connection.execute(
+   await connection.execute(
   `UPDATE GLMASTER
    SET trans_date     = TO_DATE(:td,'MM-DD-YYYY'),
        description    = :des,
@@ -354,6 +354,7 @@ export async function updatePayment(input) {
        gl_entry_date  = TO_DATE(:gd,'MM-DD-YYYY'),
        inv_type       = :invtype,
        po_number      = :ponumber,
+       cashaccount    = :pcode,          -- 👈 eituku add korun
        update_by      = :updateby,
        UPDATE_DATE    = SYSDATE
    WHERE id = :id`,
@@ -366,6 +367,7 @@ export async function updatePayment(input) {
     id:   input.masterID,
     invtype: input.inv_type ?? null,
     ponumber: input.po_number ?? null,
+    pcode: input.pcode,                  // 👈 eituku add korun
     updateby: input.update_by ?? null,
   },
   { autoCommit: false }

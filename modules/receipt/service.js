@@ -209,6 +209,7 @@ await connection.execute(
     gl_entry_date = TO_DATE(:gd, 'MM-DD-YYYY'),
     inv_type      = :invtype,
     sale_invoice_no = :saleinvno,
+    cashaccount   = :pcode,          -- 👈 eituku add korun
     update_by     = :updateby,
     UPDATE_DATE   = SYSDATE
   WHERE id = :id`,
@@ -221,6 +222,7 @@ await connection.execute(
     id:   input.masterID,
     invtype: input.inv_type ?? null,
     saleinvno: input.sale_invoice_no ?? null,
+    pcode: input.pcode,              // 👈 eituku add korun
     updateby: input.update_by ?? null,
   },
   { autoCommit: false }

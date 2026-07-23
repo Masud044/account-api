@@ -104,3 +104,13 @@ export const deleteDetail = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ═══════════════════ EXPENSE ACCOUNTS (COA) ═══════════════════
+export const getExpenseAccounts = async (req, res) => {
+  try {
+    const rows = await farmBudgetService.getExpenseAccounts();
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

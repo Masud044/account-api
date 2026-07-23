@@ -9,6 +9,9 @@ router.post('/details',       c.createDetail);
 router.put('/details/:id',    c.updateDetail);
 router.delete('/details/:id', c.deleteDetail);
 
+// Expense accounts (COA) — literal path, must come before /:id
+router.get('/expense-accounts', c.getExpenseAccounts);
+
 // Header — generic /:id routes go LAST
 router.get('/',      c.getAll);
 router.post('/',     c.create);

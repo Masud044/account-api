@@ -233,3 +233,22 @@ export const deleteFarmBudgetDetail = async (id) => {
     await conn.close();
   }
 };
+
+// ═══════════════════ EXPENSE ACCOUNTS (COA leaf nodes under Expense) ═══════════════════
+export const getExpenseAccounts = async () => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `SELECT ACCOUNT_ID, FULL_PATH
+         FROM COA
+        WHERE IS_LEAF = 1
+          AND ROOT_ACCOUNT = 'Expense'
+        ORDER BY FULL_PATH`,
+      {},
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    return result.rows;
+  } finally {
+    await conn.close();
+  }
+};

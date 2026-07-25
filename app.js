@@ -97,6 +97,7 @@ import farmBudgetRoutes from './modules/farm-budget/route.js';
 import dashboardDebitRoutes from './modules/dashboard-debit/route.js';
 
 import FarmProjectRoutes from './modules/farm-project-management/route.js';
+import farmCalendarReportRouter from './modules/farm-calendar-report/route.js';
 
 
 
@@ -234,6 +235,8 @@ app.use('/api/farm-type', farmTypeRoutes);
 
 app.use('/api/farm-budget', farmBudgetRoutes);
 app.use('/api/gl-report', dashboardDebitRoutes);
+
+app.use('/api/farm-calendar-report', farmCalendarReportRouter);
 
 
 app.use('/api/farm-project', FarmProjectRoutes);

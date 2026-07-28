@@ -112,9 +112,11 @@ export const deleteProject = async (id) => {
   const conn = await getConnection();
   try {
     // cascade: delete all child rows across the report tables first
+    // (PROJECT_ACTIVITY before PROJECT_PHASE since activity references phase)
     const childTables = [
       'PROJECT_OBJECTIVES', 'PROJECT_CAPACITY', 'INFRASTRUCTURE_REQUIREMENTS',
       'PROJECT_INVESTMENTS', 'PRODUCTION_SCHEDULES', 'MARKETING_CHANNEL',
+      'FARM_PROJECT_ACTIVITY', 'FARM_PROJECT_PHASE',
       'FINANCIAL_PROJECTIONS', 'RISK_MANAGEMENT', 'SOCIAL_ECONOMIC_BENEFITS', 'CONCLUSION',
     ];
     for (const table of childTables) {
@@ -641,6 +643,229 @@ export const deleteMarketingChannel = async (id) => {
   }
 };
 
+// ═══════════════════ PROJECT_PHASE (new — brought over from Farm Project) ═══════════════════
+export const createProjectPhase = async (data) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `INSERT INTO BWA.FARM_PROJECT_PHASE (
+        PROJECT_ID, PHASE_NAME, START_DATE, END_DATE, STATUS
+      ) VALUES (
+        :projectId, :phaseName,
+        TO_DATE(:startDate, 'YYYY-MM-DD'), TO_DATE(:endDate, 'YYYY-MM-DD'),
+        :status
+      ) RETURNING PHASE_ID INTO :outId`,
+      {
+        projectId: data.projectId ?? null,
+        phaseName: data.phaseName ?? null,
+        startDate: data.startDate ?? null,
+        endDate:   data.endDate ?? null,
+        status:    data.status ?? 'PLANNED',
+        outId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      },
+      { autoCommit: false }
+    );
+    await conn.commit();
+    return { id: result.outBinds.outId[0] };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
+export const getPhasesByProjectId = async (projectId) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `SELECT
+         PHASE_ID, PROJECT_ID, PHASE_NAME,
+         TO_CHAR(START_DATE, 'YYYY-MM-DD') AS START_DATE,
+         TO_CHAR(END_DATE, 'YYYY-MM-DD')   AS END_DATE,
+         STATUS
+       FROM BWA.FARM_PROJECT_PHASE
+       WHERE PROJECT_ID = :projectId
+       ORDER BY PHASE_ID`,
+      { projectId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    return result.rows;
+  } finally {
+    await conn.close();
+  }
+};
+
+export const updateProjectPhase = async (id, data) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `UPDATE BWA.FARM_PROJECT_PHASE
+         SET PHASE_NAME = :phaseName,
+             START_DATE = TO_DATE(:startDate, 'YYYY-MM-DD'),
+             END_DATE   = TO_DATE(:endDate, 'YYYY-MM-DD'),
+             STATUS     = :status
+       WHERE PHASE_ID = :id`,
+      {
+        phaseName: data.phaseName ?? null,
+        startDate: data.startDate ?? null,
+        endDate:   data.endDate ?? null,
+        status:    data.status ?? 'PLANNED',
+        id,
+      },
+      { autoCommit: false }
+    );
+    if (result.rowsAffected === 0) throw new Error('Project phase not found.');
+    await conn.commit();
+    return { id, rowsAffected: result.rowsAffected };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
+export const deleteProjectPhase = async (id) => {
+  const conn = await getConnection();
+  try {
+    // cascade: activities under this phase go first
+    await conn.execute(`DELETE FROM BWA.FARM_PROJECT_ACTIVITY WHERE PHASE_ID = :id`, { id }, { autoCommit: false });
+    const result = await conn.execute(`DELETE FROM BWA.FARM_PROJECT_PHASE WHERE PHASE_ID = :id`, { id }, { autoCommit: false });
+    await conn.commit();
+    return { rowsAffected: result.rowsAffected };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
+// ═══════════════════ PROJECT_ACTIVITY (new — brought over from Farm Project) ═══════════════════
+// NOTE: only PROJECT_ID is a formal FK (-> BWA.PROJECTS.PROJECT_ID). PHASE_ID is a
+// plain reference column to BWA.PROJECT_PHASE.PHASE_ID with no FK constraint on it.
+export const createProjectActivity = async (data) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `INSERT INTO BWA.FARM_PROJECT_ACTIVITY (
+        PROJECT_ID, PHASE_ID, ACTIVITY_NAME, PLAN_START_DATE, PLAN_END_DATE, STATUS
+      ) VALUES (
+        :projectId, :phaseId, :activityName,
+        TO_DATE(:planStartDate, 'YYYY-MM-DD'), TO_DATE(:planEndDate, 'YYYY-MM-DD'),
+        :status
+      ) RETURNING ACTIVITY_ID INTO :outId`,
+      {
+        projectId:     data.projectId ?? null,
+        phaseId:       data.phaseId ?? null,
+        activityName:  data.activityName ?? null,
+        planStartDate: data.planStartDate ?? null,
+        planEndDate:   data.planEndDate ?? null,
+        status:        data.status ?? 'PLANNED',
+        outId: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      },
+      { autoCommit: false }
+    );
+    await conn.commit();
+    return { id: result.outBinds.outId[0] };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
+export const getActivitiesByPhaseId = async (phaseId) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `SELECT
+         ACTIVITY_ID, PROJECT_ID, PHASE_ID, ACTIVITY_NAME,
+         TO_CHAR(PLAN_START_DATE, 'YYYY-MM-DD') AS PLAN_START_DATE,
+         TO_CHAR(PLAN_END_DATE, 'YYYY-MM-DD')   AS PLAN_END_DATE,
+         STATUS
+       FROM BWA.FARM_PROJECT_ACTIVITY
+       WHERE PHASE_ID = :phaseId
+       ORDER BY ACTIVITY_ID`,
+      { phaseId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    return result.rows;
+  } finally {
+    await conn.close();
+  }
+};
+
+export const getActivitiesByProjectId = async (projectId) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `SELECT
+         ACTIVITY_ID, PROJECT_ID, PHASE_ID, ACTIVITY_NAME,
+         TO_CHAR(PLAN_START_DATE, 'YYYY-MM-DD') AS PLAN_START_DATE,
+         TO_CHAR(PLAN_END_DATE, 'YYYY-MM-DD')   AS PLAN_END_DATE,
+         STATUS
+       FROM BWA.FARM_PROJECT_ACTIVITY
+       WHERE PROJECT_ID = :projectId
+       ORDER BY PHASE_ID, ACTIVITY_ID`,
+      { projectId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    return result.rows;
+  } finally {
+    await conn.close();
+  }
+};
+
+export const updateProjectActivity = async (id, data) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `UPDATE BWA.FARM_PROJECT_ACTIVITY
+         SET PHASE_ID        = :phaseId,
+             ACTIVITY_NAME   = :activityName,
+             PLAN_START_DATE = TO_DATE(:planStartDate, 'YYYY-MM-DD'),
+             PLAN_END_DATE   = TO_DATE(:planEndDate, 'YYYY-MM-DD'),
+             STATUS          = :status
+       WHERE ACTIVITY_ID = :id`,
+      {
+        phaseId:       data.phaseId ?? null,
+        activityName:  data.activityName ?? null,
+        planStartDate: data.planStartDate ?? null,
+        planEndDate:   data.planEndDate ?? null,
+        status:        data.status ?? 'PLANNED',
+        id,
+      },
+      { autoCommit: false }
+    );
+    if (result.rowsAffected === 0) throw new Error('Project activity not found.');
+    await conn.commit();
+    return { id, rowsAffected: result.rowsAffected };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
+export const deleteProjectActivity = async (id) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(`DELETE FROM BWA.FARM_PROJECT_ACTIVITY
+       WHERE ACTIVITY_ID = :id`, { id }, { autoCommit: false });
+    await conn.commit();
+    return { rowsAffected: result.rowsAffected };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    await conn.close();
+  }
+};
+
 // ═══════════════════ FINANCIAL_PROJECTIONS ═══════════════════
 export const createFinancialProjection = async (data) => {
   const conn = await getConnection();
@@ -987,8 +1212,8 @@ export const getFullProjectReport = async (projectId) => {
 
   const [
     objectives, capacity, infrastructure, investments,
-    schedules, marketingChannels, financialProjections,
-    risks, socialBenefits, conclusion,
+    schedules, marketingChannels, phases, activities,
+    financialProjections, risks, socialBenefits, conclusion,
   ] = await Promise.all([
     getObjectivesByProjectId(projectId),
     getCapacityByProjectId(projectId),
@@ -996,6 +1221,8 @@ export const getFullProjectReport = async (projectId) => {
     getInvestmentsByProjectId(projectId),
     getSchedulesByProjectId(projectId),
     getMarketingChannelsByProjectId(projectId),
+    getPhasesByProjectId(projectId),
+    getActivitiesByProjectId(projectId),
     getFinancialProjectionsByProjectId(projectId),
     getRisksByProjectId(projectId),
     getSocialBenefitsByProjectId(projectId),
@@ -1004,7 +1231,7 @@ export const getFullProjectReport = async (projectId) => {
 
   return {
     project, objectives, capacity, infrastructure, investments,
-    schedules, marketingChannels, financialProjections,
-    risks, socialBenefits, conclusion,
+    schedules, marketingChannels, phases, activities,
+    financialProjections, risks, socialBenefits, conclusion,
   };
 };

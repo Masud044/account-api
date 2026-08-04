@@ -59,14 +59,14 @@ export const getFarmCalendarReport = async (calendarId) => {
     );
 
     // 3. Routine activities — recurring, no fixed month
-//    const routineActivities = await conn.execute(
-//   `SELECT DETAIL_ID, ACTIVITY_NAME, ACTIVITY_DESC, FREQUENCY, FARM_TYPE, ACTIVITY_MONTH, REMARKS
-//    FROM FARM_CALENDAR_D
-//    WHERE CALENDAR_ID = :calendarId
-//    ORDER BY DETAIL_ID`,
-//   { calendarId },
-//   { outFormat: oracledb.OUT_FORMAT_OBJECT }
-// );
+   const routineActivities = await conn.execute(
+  `SELECT DETAIL_ID, ACTIVITY_NAME, ACTIVITY_DESC, FREQUENCY, FARM_TYPE, ACTIVITY_MONTH, REMARKS
+   FROM FARM_CALENDAR_D
+   WHERE CALENDAR_ID = :calendarId
+   ORDER BY DETAIL_ID`,
+  { calendarId },
+  { outFormat: oracledb.OUT_FORMAT_OBJECT }
+);
 
     // 4. KPI targets vs actuals (also source for Expected Annual Output)
     const kpiTargets = await conn.execute(

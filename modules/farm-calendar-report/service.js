@@ -9,7 +9,7 @@ const MONTH_NAMES = [
 const CATEGORY_KEYWORDS = {
   VACCINATION: ['vaccin', 'vaccine', 'deworm', 'quarantine', 'disease', 'veterinary', 'health check'],
   FEED: ['feed', 'fodder', 'silage', 'concentrate', 'forage', 'grazing'],
-  FINANCIAL: ['budget', 'financial review', 'profit', 'revenue recording', 'expense recording', 'p&l', 'working capital'],
+  FINANCIAL: ['Budget', ' Review','Annual', 'Profit', 'Revenue recording', 'Expense Recording', 'p&l', 'Working Capital'],
 };
 
 const classify = (name = '', desc = '') => {
@@ -59,16 +59,14 @@ export const getFarmCalendarReport = async (calendarId) => {
     );
 
     // 3. Routine activities — recurring, no fixed month
-    const routineActivities = await conn.execute(
-      `SELECT DETAIL_ID, ACTIVITY_NAME, ACTIVITY_DESC, FREQUENCY, FARM_TYPE, REMARKS
-       FROM FARM_CALENDAR_D
-       WHERE CALENDAR_ID = :calendarId
-         AND ACTIVITY_MONTH IS NULL
-         AND FREQUENCY IS NOT NULL
-       ORDER BY DETAIL_ID`,
-      { calendarId },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
+   const routineActivities = await conn.execute(
+  `SELECT DETAIL_ID, ACTIVITY_NAME, ACTIVITY_DESC, FREQUENCY, FARM_TYPE, ACTIVITY_MONTH, REMARKS
+   FROM FARM_CALENDAR_D
+   WHERE CALENDAR_ID = :calendarId
+   ORDER BY DETAIL_ID`,
+  { calendarId },
+  { outFormat: oracledb.OUT_FORMAT_OBJECT }
+);
 
     // 4. KPI targets vs actuals (also source for Expected Annual Output)
     const kpiTargets = await conn.execute(

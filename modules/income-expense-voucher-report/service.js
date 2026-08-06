@@ -1,5 +1,5 @@
-// import oracledb from 'oracledb';
-// import { getConnection } from '../../config/db.js';
+import oracledb from 'oracledb';
+import { getConnection } from '../../config/db.js';
 
 // export async function getExpenseReport(startDate, endDate) {
 //   let connection;
@@ -69,9 +69,6 @@
 //   }
 // }
 
-import oracledb from 'oracledb';
-import { getConnection } from '../../config/db.js';
-
 export async function getExpenseReport(startDate, endDate) {
   let connection;
   try {
@@ -101,7 +98,7 @@ export async function getExpenseReport(startDate, endDate) {
       binds.endDate = endDate;
     }
 
-    query += ` ORDER BY GL_ENTRY_DATE, ID`;
+    query += ` ORDER BY GL_ENTRY_DATE DESC, ID DESC`;
 
     const result = await connection.execute(
       query,
@@ -150,7 +147,7 @@ export async function getIncomeReport(startDate, endDate) {
       binds.endDate = endDate;
     }
 
-    query += ` ORDER BY GL_ENTRY_DATE, ID`;
+    query += ` ORDER BY GL_ENTRY_DATE DESC, ID DESC`;
 
     const result = await connection.execute(
       query,

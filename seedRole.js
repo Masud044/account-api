@@ -1,36 +1,32 @@
-// seedRole.js — Account API
+// seedRole.js
 // Roles: Admin, Inventory
 // Run this FIRST before seedRBAC.js and seedRolePermissions.js
-
+import "dotenv/config";
 import { getConnection } from "./config/db.js";
 
 export const seedRoles = async () => {
   let conn;
   try {
     conn = await getConnection();
-
     const rolesData = [
       {
         name: "Admin",
-        desc: "Full system access — Accounting, GL, Reports, Dashboard, and Inventory management.",
+        desc: "Full system access — Vouchers, Production, Inventory, Account Reports, and User Management.",
       },
       {
         name: "Inventory",
-        desc: "Inventory management access only — Items, Stock, Stores, UOM, Types, and Requisitions.",
+        desc: "Access limited to Inventory and Inventory Report modules.",
       },
     ];
-
     console.log("🚀 Processing System Roles...");
-
     for (const r of rolesData) {
       const checkRes = await conn.execute(
-        `SELECT ID FROM ROLES WHERE ROLE_NAME = :1`,
+        `SELECT ID FROM BWA.ROLES WHERE ROLE_NAME = :1`,
         [r.name]
       );
-
       if (checkRes.rows.length === 0) {
         await conn.execute(
-          `INSERT INTO ROLES (ROLE_NAME, DESCRIPTION) VALUES (:1, :2)`,
+          `INSERT INTO BWA.ROLES (ROLE_NAME, DESCRIPTION) VALUES (:1, :2)`,
           [r.name, r.desc]
         );
         console.log(`  + Role '${r.name}' inserted successfully.`);
@@ -38,7 +34,6 @@ export const seedRoles = async () => {
         console.log(`  - Role '${r.name}' already exists. Skipping.`);
       }
     }
-
     await conn.commit();
     console.log("✅ Roles seeding completed.");
   } catch (err) {
@@ -52,6 +47,7 @@ export const seedRoles = async () => {
 
 const run = async () => {
   try {
+  
     await seedRoles();
     process.exit(0);
   } catch (err) {

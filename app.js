@@ -102,6 +102,7 @@ import farmCalendarReportRouter from './modules/farm-calendar-report/route.js';
 import projectProfileRouter from './modules/project-management/route.js';
 import financialProject from './modules/financial-projection/route.js'
 import glReportRoutes from './modules/income-expense-voucher-report/route.js';
+import agendaManagementRoutes from './modules/agenda-management/route.js';
 
 
 
@@ -248,6 +249,9 @@ app.use('/api/project-profile', projectProfileRouter);
 app.use('/api/financial-project', financialProject);
 
 app.use('/api/farm-project', FarmProjectRoutes);
+
+
+app.use('/api/agenda-management', agendaManagementRoutes);
 
 app.use("/api/users", userManagementRoutes);
 

@@ -8,6 +8,8 @@ router.get('/lookups/departments', c.getDepartments);
 router.get('/lookups/employees', c.getEmployees);
 router.get('/lookups/rooms', c.getMeetingRooms);
 
+
+
 // Header — generic /:id routes go LAST
 router.get('/', c.getAll);
 router.post('/', c.create);

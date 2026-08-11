@@ -103,6 +103,8 @@ import projectProfileRouter from './modules/project-management/route.js';
 import financialProject from './modules/financial-projection/route.js'
 import glReportRoutes from './modules/income-expense-voucher-report/route.js';
 import agendaManagementRoutes from './modules/agenda-management/route.js';
+import employeeDepartmentRoomRoutes from './modules/employee-department-room/route.js';
+
 
 
 
@@ -252,6 +254,7 @@ app.use('/api/farm-project', FarmProjectRoutes);
 
 
 app.use('/api/agenda-management', agendaManagementRoutes);
+app.use('/api',employeeDepartmentRoomRoutes );
 
 app.use("/api/users", userManagementRoutes);
 

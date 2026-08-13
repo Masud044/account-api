@@ -105,6 +105,7 @@ import glReportRoutes from './modules/income-expense-voucher-report/route.js';
 import agendaManagementRoutes from './modules/agenda-management/route.js';
 import employeeDepartmentRoomRoutes from './modules/employee-department-room/route.js';
 import agendaDetailRoutes from './modules/agenda-details-tab/route.js';
+import ledgerPeriodRoutes from './modules/ledger-period-calendar/route.js';
 
 
 
@@ -256,6 +257,8 @@ app.use('/api/farm-project', FarmProjectRoutes);
 
 app.use('/api/agenda-management', agendaManagementRoutes);
 app.use('/api/agenda-management/:id', agendaDetailRoutes);
+
+ app.use('/api/ledger-period-calendar', ledgerPeriodRoutes);
 
 app.use('/api',employeeDepartmentRoomRoutes );
 

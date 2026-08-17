@@ -384,3 +384,23 @@ export const updatePeriodType = async (id, data) => {
     await conn.close();
   }
 };
+
+// ═══════════════════ PERIOD STATUS CHECK (for posting control) ═══════════════════
+export const getPeriodStatusForDate = async (moduleCode, date) => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute(
+      `SELECT LP.PERIOD_ID, LP.PERIOD_NAME, PMS.STATUS
+       FROM LEDGER_PERIOD LP
+       JOIN PERIOD_MODULE_STATUS PMS ON PMS.PERIOD_ID = LP.PERIOD_ID
+       JOIN LEDGER_MODULE LM        ON LM.MODULE_ID = PMS.MODULE_ID
+       WHERE LM.MODULE_CODE = :moduleCode
+         AND TO_DATE(:checkDate, 'YYYY-MM-DD') BETWEEN LP.START_DATE AND LP.END_DATE`,
+      { moduleCode, checkDate: date },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    return result.rows[0] ?? null;
+  } finally {
+    await conn.close();
+  }
+};

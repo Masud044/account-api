@@ -55,3 +55,4 @@ export const getGeneralLedger = async (fromDate, toDate, accountCode = null) => 
     await conn.close();
   }
 };
+

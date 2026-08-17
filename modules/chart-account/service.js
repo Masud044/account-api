@@ -466,3 +466,61 @@ export async function updateChartAccount(id, body) {
     }
   });
 }
+
+export async function getProjectChartAccounts() {
+  return withConnection(async (conn) => {
+    const result = await conn.execute(
+      `SELECT * FROM (
+         SELECT
+           ID,
+           ACCOUNT_ID,
+           ACCOUNT_NAME,
+           PARENT_ACCOUNT_ID,
+           ENABLED,
+           LASTLEVEL,
+           LEVEL                                         AS LEBEL,
+           SYS_CONNECT_BY_PATH(ACCOUNT_NAME, ' > ')     AS FULL_PATH,
+           CONNECT_BY_ROOT ACCOUNT_NAME                  AS ROOT_ACCOUNT,
+           CONNECT_BY_ISLEAF                             AS IS_LEAF
+         FROM CHART_OF_ACCOUNT
+         START WITH PARENT_ACCOUNT_ID = 0
+         CONNECT BY PRIOR ACCOUNT_ID = PARENT_ACCOUNT_ID
+       )
+       WHERE FULL_PATH LIKE '%Project%'
+       ORDER BY ACCOUNT_ID`,
+      {},
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    return result.rows;
+  });
+}
+
+export async function getOtherChartAccounts() {
+  return withConnection(async (conn) => {
+    const result = await conn.execute(
+      `SELECT * FROM (
+         SELECT
+           ID,
+           ACCOUNT_ID,
+           ACCOUNT_NAME,
+           PARENT_ACCOUNT_ID,
+           ENABLED,
+           LASTLEVEL,
+           LEVEL                                         AS LEBEL,
+           SYS_CONNECT_BY_PATH(ACCOUNT_NAME, ' > ')     AS FULL_PATH,
+           CONNECT_BY_ROOT ACCOUNT_NAME                  AS ROOT_ACCOUNT,
+           CONNECT_BY_ISLEAF                             AS IS_LEAF
+         FROM CHART_OF_ACCOUNT
+         START WITH PARENT_ACCOUNT_ID = 0
+         CONNECT BY PRIOR ACCOUNT_ID = PARENT_ACCOUNT_ID
+       )
+       WHERE FULL_PATH NOT LIKE '%Project%'
+       ORDER BY ACCOUNT_ID`,
+      {},
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    return result.rows;
+  });
+}

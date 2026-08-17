@@ -89,6 +89,7 @@
 // }
 
 import { withConnection, toMmDdYyyy, currentMmDdYyyy, oracledb } from "../../config/db.js";
+import { getPeriodStatusForDate } from "../ledger-period-calendar/service.js";
 
 export async function searchPayment(id) {
   return withConnection(async (connection) => {
@@ -178,6 +179,18 @@ export async function searchPayment(id) {
 //   });
 // }
 export async function insertPayment(input) {
+  const periodStatus = await getPeriodStatusForDate("AP", input.gl_date);
+
+  if (!periodStatus) {
+    const err = new Error(`No ledger period is defined for AP date ${input.gl_date}. Please set up the period calendar first.`);
+    err.statusCode = 400;
+    throw err;
+  }
+  if (periodStatus.STATUS === "CLOSED") {
+    const err = new Error(`AP period "${periodStatus.PERIOD_NAME}" is closed for posting. Choose a date within an open period.`);
+    err.statusCode = 400;
+    throw err;
+  }
   return withConnection(async (connection) => {
     try {
       const seqResult = await connection.execute(
@@ -342,6 +355,19 @@ export async function insertPayment(input) {
 // }
 
 export async function updatePayment(input) {
+
+  const periodStatus = await getPeriodStatusForDate("AP", input.gl_date);
+
+  if (!periodStatus) {
+    const err = new Error(`No ledger period is defined for AP date ${input.gl_date}. Please set up the period calendar first.`);
+    err.statusCode = 400;
+    throw err;
+  }
+  if (periodStatus.STATUS === "CLOSED") {
+    const err = new Error(`AP period "${periodStatus.PERIOD_NAME}" is closed for posting. Choose a date within an open period.`);
+    err.statusCode = 400;
+    throw err;
+  }
   return withConnection(async (connection) => {
     try {
       // ── 1. Update GLMASTER ───────────────────────────────────────────────

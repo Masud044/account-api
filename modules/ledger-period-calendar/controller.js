@@ -159,3 +159,16 @@ export const updatePeriodType = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+export const checkPeriodStatus = async (req, res) => {
+  try {
+    const { moduleCode, date } = req.query;
+    if (!moduleCode || !date) {
+      return res.status(400).json({ success: false, message: 'moduleCode and date are required.' });
+    }
+    const row = await ledgerPeriodService.getPeriodStatusForDate(moduleCode, date);
+    res.json({ success: true, data: row });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

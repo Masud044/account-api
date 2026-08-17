@@ -12,6 +12,7 @@ router.get('/period-types',       c.getAllPeriodTypes);   // keep existing GET h
 
 
 // Period module status (literal paths — must come before any /:id on this router)
+router.get('/check-period-status', c.checkPeriodStatus);
 router.patch('/period-module-status/:periodId/:moduleId', c.togglePeriodModuleStatus);
 router.get('/period-status-summary/:periodId',             c.getPeriodStatusSummary);
 

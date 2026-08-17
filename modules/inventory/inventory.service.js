@@ -373,6 +373,7 @@
 // };
 
 import { getConnection, oracledb } from '../../config/db.js';
+import { getPeriodStatusForDate } from '../ledger-period-calendar/service.js';
 
 // ═══════════════════════════════════════════════════════════════
 // Helper: generate GRN_NO — format: GRN-YYYY-MM-XXXX
@@ -483,6 +484,23 @@ export const getNextInvoiceNumber = async () => {
 // data = { invDate, storeId, poNo, grnNo?, invoiceNumber?, supplierId?, creationBy?, items: [...] }
 // ═══════════════════════════════════════════════════════════════
 export const createInventory = async (data) => {
+
+  const invDateStr = data.invDate
+    ? new Date(data.invDate).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+
+  const periodStatus = await getPeriodStatusForDate('INV', invDateStr);
+
+  if (!periodStatus) {
+    const err = new Error(`No ledger period is defined for INV date ${invDateStr}. Please set up the period calendar first.`);
+    err.statusCode = 400;
+    throw err;
+  }
+  if (periodStatus.STATUS === 'CLOSED') {
+    const err = new Error(`Inventory period "${periodStatus.PERIOD_NAME}" is closed for posting. Choose a date within an open period.`);
+    err.statusCode = 400;
+    throw err;
+  }
   const conn = await getConnection();
   try {
     const grnNo = data.grnNo || await generateGrnNo(conn);
@@ -562,6 +580,26 @@ export const createInventory = async (data) => {
 // NOTE: INVOICE_NUMBER kokhono re-generate hoy na, PO_NO er moto e fixed thake
 // ═══════════════════════════════════════════════════════════════
 export const updateInventory = async (hid, data) => {
+
+   const invDateStr = data.invDate
+    ? new Date(data.invDate).toISOString().split('T')[0]
+    : null;
+
+  if (invDateStr) {
+    const periodStatus = await getPeriodStatusForDate('INV', invDateStr);
+
+    if (!periodStatus) {
+      const err = new Error(`No ledger period is defined for INV date ${invDateStr}. Please set up the period calendar first.`);
+      err.statusCode = 400;
+      throw err;
+    }
+    if (periodStatus.STATUS === 'CLOSED') {
+      const err = new Error(`Inventory period "${periodStatus.PERIOD_NAME}" is closed for posting. Choose a date within an open period.`);
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+  
   const conn = await getConnection();
   try {
     // 1) HEADER UPDATE

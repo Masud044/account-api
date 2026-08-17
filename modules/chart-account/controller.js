@@ -3,6 +3,8 @@ import {
   getAllChartAccounts,
   getChartAccountById,
   updateChartAccount,
+  getProjectChartAccounts,
+  getOtherChartAccounts,
 } from "../chart-account/service.js";
 
 /**
@@ -98,5 +100,28 @@ export async function updateChartAccountHandler(req, res) {
     console.error("[ChartAccount] updateChartAccountHandler error:", err);
     const status = err.message.includes("not found") ? 404 : 500;
     return res.status(status).json({ success: false, message: err.message || "Internal server error." });
+  }
+}
+
+
+
+
+export async function fetchProjectChartAccounts(req, res) {
+  try {
+    const rows = await getProjectChartAccounts();
+    res.json(rows);
+  } catch (err) {
+    console.error("[fetchProjectChartAccounts]", err);
+    res.status(500).json({ message: "Failed to fetch project accounts", error: err.message });
+  }
+}
+
+export async function fetchOtherChartAccounts(req, res) {
+  try {
+    const rows = await getOtherChartAccounts();
+    res.json(rows);
+  } catch (err) {
+    console.error("[fetchOtherChartAccounts]", err);
+    res.status(500).json({ message: "Failed to fetch other accounts", error: err.message });
   }
 }

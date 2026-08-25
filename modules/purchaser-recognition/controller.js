@@ -118,6 +118,7 @@ export const searchItems = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
+   
     const result = await service.createPurchaseRecognition({
       ...req.body,
       createdBy: req.user?.id ?? null,

@@ -107,6 +107,9 @@ import employeeDepartmentRoomRoutes from './modules/employee-department-room/rou
 import agendaDetailRoutes from './modules/agenda-details-tab/route.js';
 import ledgerPeriodRoutes from './modules/ledger-period-calendar/route.js';
 
+import notificationRoutes from './modules/app-notificaiton/route.js';
+import './modules/app-notificaiton/listener.js';
+
 
 
 
@@ -253,7 +256,7 @@ app.use('/api/project-profile', projectProfileRouter);
 app.use('/api/financial-project', financialProject);
 
 app.use('/api/farm-project', FarmProjectRoutes);
-
+app.use('/api/notifications', notificationRoutes);
 
 app.use('/api/agenda-management', agendaManagementRoutes);
 app.use('/api/agenda-management/:id', agendaDetailRoutes);

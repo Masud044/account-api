@@ -495,6 +495,8 @@
 
 
 import { getConnection, oracledb } from '../../config/db.js';
+import {notify, notifyByPermission } from '../app-notificaiton/service.js';
+import { NOTIFICATION_TYPES, REF_TABLES } from '../app-notificaiton/types.js';
 
 // ═══════════════════════════════════════════════════════════════
 // Helper: generate FORM_ID (format: PR-YYYY-NNNN, resets every year)
@@ -1020,6 +1022,41 @@ export const getApprovalTrackingByFormId = async (formId) => {
 //   }
 // };
 
+// export const updateApprovalStatus = async (formId, status, reason = null) => {
+//   if (!VALID_STATUSES.includes(status)) throw new Error(`Invalid status: ${status}`);
+//   if (status === 'Rejected' && !reason) throw new Error('Rejection reason is required.');
+
+//   const conn = await getConnection();
+//   try {
+//     const updateResult = await conn.execute(
+//       `UPDATE PURCHASE_APPROVAL_TRACKING
+//          SET OVERALL_STATUS = :status, REJECT_REASON = :reason, UPDATED_DATE = SYSDATE
+//        WHERE FORM_ID = :formId`,
+//       { status, reason, formId },
+//       { autoCommit: false }
+//     );
+//     if (updateResult.rowsAffected === 0) throw new Error('Approval tracking row not found.');
+
+//     // ✅ Sync header STATUS: Approved → 3, Rejected → back to 1 (Draft, so it can be edited & resent)
+//     const headerStatus = status === 'Approved' ? 3 : status === 'Rejected' ? 1 : 2;
+//     await conn.execute(
+//       `UPDATE PURCHASE_RECOGNITION_H SET STATUS = :headerStatus WHERE FORM_ID = :formId`,
+//       { headerStatus, formId },
+//       { autoCommit: false }
+//     );
+
+//     await conn.commit();
+//     return { formId, status, reason };
+//   } catch (err) {
+//     await conn.rollback();
+//     throw err;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
+
+
 export const updateApprovalStatus = async (formId, status, reason = null) => {
   if (!VALID_STATUSES.includes(status)) throw new Error(`Invalid status: ${status}`);
   if (status === 'Rejected' && !reason) throw new Error('Rejection reason is required.');
@@ -1035,8 +1072,17 @@ export const updateApprovalStatus = async (formId, status, reason = null) => {
     );
     if (updateResult.rowsAffected === 0) throw new Error('Approval tracking row not found.');
 
-    // ✅ Sync header STATUS: Approved → 3, Rejected → back to 1 (Draft, so it can be edited & resent)
     const headerStatus = status === 'Approved' ? 3 : status === 'Rejected' ? 1 : 2;
+
+    // ✅ age SELECT kore CREATED_BY/VENDOR_NAME niye nao (RETURNING INTO na diye — shohoj, kom bug-prone)
+    const headerInfo = await conn.execute(
+      `SELECT CREATED_BY, VENDOR_NAME FROM PURCHASE_RECOGNITION_H WHERE FORM_ID = :formId`,
+      { formId },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const createdBy = headerInfo.rows[0]?.CREATED_BY;
+    const vendorName = headerInfo.rows[0]?.VENDOR_NAME;
+
     await conn.execute(
       `UPDATE PURCHASE_RECOGNITION_H SET STATUS = :headerStatus WHERE FORM_ID = :formId`,
       { headerStatus, formId },
@@ -1044,6 +1090,24 @@ export const updateApprovalStatus = async (formId, status, reason = null) => {
     );
 
     await conn.commit();
+
+   
+
+    if (createdBy) {
+      const type = status === 'Approved' ? NOTIFICATION_TYPES.APPROVAL_APPROVED : NOTIFICATION_TYPES.APPROVAL_REJECTED;
+      notify({
+        userIds: [createdBy],
+        type,
+        data: { formId, vendorName, reason },
+        refTable: REF_TABLES.PURCHASE_RECOGNITION,
+        refId: formId,
+      })
+        .then(() => console.log('[updateApprovalStatus] notify sent to', createdBy))
+        .catch((err) => console.error('Notification failed [updateApprovalStatus]:', err.message));
+    } else {
+      console.warn('[updateApprovalStatus] createdBy missing — notification skipped for', formId);
+    }
+
     return { formId, status, reason };
   } catch (err) {
     await conn.rollback();
@@ -1124,6 +1188,14 @@ export const sendForApproval = async (formId) => {
     }
 
     await conn.commit();
+    notifyByPermission({
+      permissionCode: 'APPROVAL_DASHBOARD_VIEW',
+      type: NOTIFICATION_TYPES.APPROVAL_REQUEST,
+      data: { formId, vendorName: header.VENDOR_NAME },
+      refTable: REF_TABLES.PURCHASE_RECOGNITION,
+      refId: formId,
+    }).catch((err) => console.error('Notification failed [sendForApproval]:', err.message));
+
     return { formId, status: 2 };
   } catch (err) {
     await conn.rollback();
@@ -1132,3 +1204,12 @@ export const sendForApproval = async (formId) => {
     await conn.close();
   }
 };
+
+//     return { formId, status: 2 };
+//   } catch (err) {
+//     await conn.rollback();
+//     throw err;
+//   } finally {
+//     await conn.close();
+//   }
+// };

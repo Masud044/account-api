@@ -324,26 +324,50 @@ export async function updateGlEntry({
 
   return withConnection(async (conn) => {
     try {
-      await conn.execute(
-        `UPDATE GLMASTER SET
-           TRANS_DATE    = TO_DATE(:trans_date,    'MM-DD-YYYY'),
-           DESCRIPTION   = :description,
-           SUPPORTING    = :supporting,
-           GL_ENTRY_DATE = TO_DATE(:gl_entry_date, 'MM-DD-YYYY'),
-           UPDATE_BY     = :update_by,
-           UPDATE_DATE   = SYSDATE
-         WHERE ID = :master_id`,
-        {
-          trans_date:    toMmDdYyyy(trans_date),
-          description:   receive_desc ?? null,
-          supporting:    supporting   ?? null,
-          gl_entry_date: toMmDdYyyy(gl_entry_date),
-          update_by:     update_by ?? null,
-          master_id:     Number(master_id),
-        },
-        { autoCommit: false }
-      );
+      // await conn.execute(
+      //   `UPDATE GLMASTER SET
+      //      TRANS_DATE    = TO_DATE(:trans_date,    'MM-DD-YYYY'),
+      //      DESCRIPTION   = :description,
+      //      SUPPORTING    = :supporting,
+      //      GL_ENTRY_DATE = TO_DATE(:gl_entry_date, 'MM-DD-YYYY'),
+      //      UPDATE_BY     = :update_by,
+      //      UPDATE_DATE   = SYSDATE
+      //    WHERE ID = :master_id`,
+      //   {
+      //     trans_date:    toMmDdYyyy(trans_date),
+      //     description:   receive_desc ?? null,
+      //     supporting:    supporting   ?? null,
+      //     gl_entry_date: toMmDdYyyy(gl_entry_date),
+      //     update_by:     update_by ?? null,
+      //     master_id:     Number(master_id),
+      //   },
+      //   { autoCommit: false }
+      // );
 
+
+      await conn.execute(
+  `UPDATE GLMASTER SET
+     TRANS_DATE    = TO_DATE(:trans_date,    'MM-DD-YYYY'),
+     DESCRIPTION   = :description,
+     SUPPORTING    = :supporting,
+     GL_ENTRY_DATE = TO_DATE(:gl_entry_date, 'MM-DD-YYYY'),
+     UPDATE_BY     = :update_by,
+     UPDATE_DATE   = SYSDATE,
+     TYPE          = :type,
+     REF_REVERSE_ENTRY = :refreverse
+   WHERE ID = :master_id`,
+  {
+    trans_date:    toMmDdYyyy(trans_date),
+    description:   receive_desc ?? null,
+    supporting:    supporting   ?? null,
+    gl_entry_date: toMmDdYyyy(gl_entry_date),
+    update_by:     update_by ?? null,
+    master_id:     Number(master_id),
+    type:          type ?? "MANUAL",
+    refreverse:    ref_reverse_entry ?? null,
+  },
+  { autoCommit: false }
+);
       const existingResult = await conn.execute(
         `SELECT ID FROM GLDETAILS WHERE GLMASTERID = :master_id`,
         { master_id: Number(master_id) },

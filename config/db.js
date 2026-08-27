@@ -202,16 +202,38 @@ function initThickMode() {
   }
 }
 
+// export async function getConnection() {
+//   try {
+//     if (process.env.ORACLE_THICK_MODE === 'true') {
+//       initThickMode();
+//     }
+//     return await oracledb.getConnection({
+//       user: process.env.DB_USER,
+//       password: process.env.DB_PASSWORD,
+//       connectString: process.env.DB_CONNECT
+//     });
+//   } catch (error) {
+//     const message = error?.message || "Unknown Oracle connection error";
+//     throw new Error(`Oracle connection failed: ${message}`);
+//   }
+// }
 export async function getConnection() {
   try {
     if (process.env.ORACLE_THICK_MODE === 'true') {
       initThickMode();
     }
-    return await oracledb.getConnection({
+    const connection = await oracledb.getConnection({
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       connectString: process.env.DB_CONNECT
     });
+    // fetchAsString includes oracledb.DATE, so DATE columns come back as
+    // plain strings in the session's NLS_DATE_FORMAT (often 'DD-MON-RY',
+    // e.g. "27-AUG-26" by default) — not ISO. Force it here so every
+    // fetched date string is always 'YYYY-MM-DD', matching what
+    // toDateStr()/toInputDate() everywhere in the app assume.
+    await connection.execute(`ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD'`);
+    return connection;
   } catch (error) {
     const message = error?.message || "Unknown Oracle connection error";
     throw new Error(`Oracle connection failed: ${message}`);

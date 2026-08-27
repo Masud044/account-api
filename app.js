@@ -109,6 +109,7 @@ import ledgerPeriodRoutes from './modules/ledger-period-calendar/route.js';
 
 import notificationRoutes from './modules/app-notificaiton/route.js';
 import './modules/app-notificaiton/listener.js';
+import reverseVoucherRoute from "./modules/reverse-voucher/route.js";
 
 
 
@@ -192,6 +193,10 @@ app.use("/api/receive-account-code",    recAccountCodeRoutes);     // GET  /api/
 app.use("/api/receive-all-unposted",    receiveAllUnpostedRoutes); // GET  /api/receive/all-unposted
 app.use("/api/receive-code",            receiveCodeRoutes);        // GET  /api/receive/code
 app.use("/api/receive-view",                 receiveViewRoutes);        // GET  /api/receive/:id
+
+//voucher reverse
+
+app.use("/api/reverse-voucher", reverseVoucherRoute);
 
 app.use("/api/customer-type", customerRoutes);   // GET /api/customer
 app.use("/api/supplier-type", supplierRoutes);   // GET /api/supplier

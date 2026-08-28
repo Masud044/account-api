@@ -1,3 +1,50 @@
+// // import { updateGlEntry } from "./gl_edit.service.js";
+
+// // export async function editGlEntry(req, res) {
+// //   try {
+// //     const {
+// //       master_id,
+// //       trans_date,
+// //       gl_entry_date,
+// //       receive_desc,
+// //       supporting,
+// //       details,
+// //     } = req.body;
+
+// //     if (
+// //       !master_id ||
+// //       !trans_date ||
+// //       !gl_entry_date ||
+// //       !Array.isArray(details) ||
+// //       details.length === 0
+// //     ) {
+// //       return res.status(400).json({
+// //         success: false,
+// //         message:
+// //           "Missing required fields: master_id, trans_date, gl_entry_date, and details[].",
+// //       });
+// //     }
+
+// //     const data = await updateGlEntry({
+// //       master_id,
+// //       trans_date,
+// //       gl_entry_date,
+// //       receive_desc,
+// //       supporting,
+// //       details,
+// //     });
+
+// //     return res.status(200).json({
+// //       success: true,
+// //       message: "Journal entry updated successfully.",
+// //       data,
+// //     });
+// //   } catch (err) {
+// //     console.error("[gl_edit] editGlEntry error:", err.message);
+// //     return res.status(500).json({ success: false, message: "Internal server error." });
+// //   }
+// // }
+
 // import { updateGlEntry } from "./gl_edit.service.js";
 
 // export async function editGlEntry(req, res) {
@@ -11,21 +58,21 @@
 //       details,
 //     } = req.body;
 
-//     if (
-//       !master_id ||
-//       !trans_date ||
-//       !gl_entry_date ||
-//       !Array.isArray(details) ||
-//       details.length === 0
-//     ) {
+//     // ── Validation ────────────────────────────────────────────────────
+//     if (!master_id || !trans_date || !gl_entry_date) {
 //       return res.status(400).json({
-//         success: false,
-//         message:
-//           "Missing required fields: master_id, trans_date, gl_entry_date, and details[].",
+//         status:  "error",
+//         message: "master_id, trans_date, and gl_entry_date are required.",
+//       });
+//     }
+//     if (!Array.isArray(details) || details.length === 0) {
+//       return res.status(400).json({
+//         status:  "error",
+//         message: "At least one detail row is required.",
 //       });
 //     }
 
-//     const data = await updateGlEntry({
+//     const result = await updateGlEntry({
 //       master_id,
 //       trans_date,
 //       gl_entry_date,
@@ -35,13 +82,17 @@
 //     });
 
 //     return res.status(200).json({
-//       success: true,
-//       message: "Journal entry updated successfully.",
-//       data,
+//       status:   "success",
+//       message:  "Journal entry updated successfully.",
+//       masterId: result.masterId,
 //     });
+
 //   } catch (err) {
-//     console.error("[gl_edit] editGlEntry error:", err.message);
-//     return res.status(500).json({ success: false, message: "Internal server error." });
+//     console.error("[gl_edit.controller] error:", err.message);
+//     return res.status(500).json({
+//       status:  "error",
+//       message: err.message || "Failed to update GL entry.",
+//     });
 //   }
 // }
 
@@ -56,6 +107,9 @@ export async function editGlEntry(req, res) {
       receive_desc,
       supporting,
       details,
+      update_by,          // ← ADD
+      type,               // ← ADD
+      // ref_reverse_entry,  // ← ADD
     } = req.body;
 
     // ── Validation ────────────────────────────────────────────────────
@@ -79,6 +133,9 @@ export async function editGlEntry(req, res) {
       receive_desc,
       supporting,
       details,
+      update_by,          // ← ADD
+      type,               // ← ADD
+    
     });
 
     return res.status(200).json({

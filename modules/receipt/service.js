@@ -311,68 +311,150 @@ await connection.execute(
   { autoCommit: false }
 );
       // ── 2. Update CREDIT rows (account rows) ───────────────────────
-      for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {
-        const rowId = input.DEBIT_ID[i];
+//       for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {
+//         const rowId = input.DEBIT_ID[i];
 
-        if (rowId && Number.isInteger(Number(rowId))) {
-          // Existing row → UPDATE
-        await connection.execute(
-  `UPDATE GLDETAILS SET
-    credit          = :amt,
-    debit           = 0,
-    code            = :acode,
-    codedescription = :cdesc,
-    description     = :ds,
-    update_by       = :updateby,
-    UPDATE_DATE     = SYSDATE
-  WHERE id = :id`,
-  {
-    amt:   input.amount2?.[i]          || 0,
-    acode: input.acode?.[i]            || "",
-    cdesc: input.CODEDESCRIPTION?.[i]  || "",
-    ds:    input.DESCRIPTION?.[i]      || "",
-    updateby: input.update_by ?? null,
-    id:    Number(rowId),
-  },
-  { autoCommit: false }
-);
-        } else {
-          // New row added during edit → INSERT
-          await connection.execute(
-            `INSERT INTO GLDETAILS
-              (glmasterid, code, credit, debit, codedescription, description)
-             VALUES
-              (:mid, :code, :amt, 0, :cdesc, :ds)`,
-            {
-              mid:   input.masterID,
-              code:  input.acode?.[i]            || "",
-              amt:   input.amount2?.[i]          || 0,
-              cdesc: input.CODEDESCRIPTION?.[i]  || "",
-              ds:    input.DESCRIPTION?.[i]      || "",
-            },
-            { autoCommit: false }
-          );
-        }
-      }
+//         if (rowId && Number.isInteger(Number(rowId))) {
+//           // Existing row → UPDATE
+//         await connection.execute(
+//   `UPDATE GLDETAILS SET
+//     credit          = :amt,
+//     debit           = 0,
+//     code            = :acode,
+//     codedescription = :cdesc,
+//     description     = :ds,
+//     update_by       = :updateby,
+//     UPDATE_DATE     = SYSDATE
+//   WHERE id = :id`,
+//   {
+//     amt:   input.amount2?.[i]          || 0,
+//     acode: input.acode?.[i]            || "",
+//     cdesc: input.CODEDESCRIPTION?.[i]  || "",
+//     ds:    input.DESCRIPTION?.[i]      || "",
+//     updateby: input.update_by ?? null,
+//     id:    Number(rowId),
+//   },
+//   { autoCommit: false }
+// );
+//         } else {
+//           // New row added during edit → INSERT
+//           await connection.execute(
+//             `INSERT INTO GLDETAILS
+//               (glmasterid, code, credit, debit, codedescription, description)
+//              VALUES
+//               (:mid, :code, :amt, 0, :cdesc, :ds)`,
+//             {
+//               mid:   input.masterID,
+//               code:  input.acode?.[i]            || "",
+//               amt:   input.amount2?.[i]          || 0,
+//               cdesc: input.CODEDESCRIPTION?.[i]  || "",
+//               ds:    input.DESCRIPTION?.[i]      || "",
+//             },
+//             { autoCommit: false }
+//           );
+//         }
+//       }
+
+for (let i = 0; i < (input.DEBIT_ID || []).length; i++) {
+  const rowId = input.DEBIT_ID[i];
+
+  if (rowId && Number.isInteger(Number(rowId))) {
+    // ── আগে row-টার বর্তমান direction বের করো ──
+    const existingResult = await connection.execute(
+      `SELECT DEBIT, CREDIT FROM GLDETAILS WHERE id = :id`,
+      { id: Number(rowId) },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const existingRow = existingResult.rows[0];
+    const wasDebitSide = Number(existingRow?.DEBIT || 0) > 0;
+
+    const newAmt = input.amount2?.[i] || 0;
+
+    await connection.execute(
+      `UPDATE GLDETAILS SET
+        debit           = :debitVal,
+        credit          = :creditVal,
+        code            = :acode,
+        codedescription = :cdesc,
+        description     = :ds,
+        update_by       = :updateby,
+        UPDATE_DATE     = SYSDATE
+      WHERE id = :id`,
+      {
+        debitVal:  wasDebitSide ? newAmt : 0,
+        creditVal: wasDebitSide ? 0 : newAmt,
+        acode: input.acode?.[i] || "",
+        cdesc: input.CODEDESCRIPTION?.[i] || "",
+        ds:    input.DESCRIPTION?.[i]     || "",
+        updateby: input.update_by ?? null,
+        id:    Number(rowId),
+      },
+      { autoCommit: false }
+    );
+  } else {
+    // নতুন row হলে যথারীতি credit side-এ (default) INSERT
+    await connection.execute(
+      `INSERT INTO GLDETAILS
+        (glmasterid, code, credit, debit, codedescription, description)
+       VALUES
+        (:mid, :code, :amt, 0, :cdesc, :ds)`,
+      {
+        mid:   input.masterID,
+        code:  input.acode?.[i] || "",
+        amt:   input.amount2?.[i] || 0,
+        cdesc: input.CODEDESCRIPTION?.[i] || "",
+        ds:    input.DESCRIPTION?.[i]     || "",
+      },
+      { autoCommit: false }
+    );
+  }
+}
 
       // ── 3. Update DEBIT row (payment code row) ─────────────────────
       // ✅ debit = totalAmount (not credit!)
-    await connection.execute(
-  `UPDATE GLDETAILS SET
-    debit       = :dr,
-    credit      = 0,
-    code        = :pcode,
-    update_by   = :updateby,
-    UPDATE_DATE = SYSDATE
-  WHERE id = :cid`,
-  {
-    dr:    input.totalAmount,
-    pcode: input.pcode,
-    updateby: input.update_by ?? null,
-    cid:   input.credit_id,
-  },
-  { autoCommit: false }
-);
+//     await connection.execute(
+//   `UPDATE GLDETAILS SET
+//     debit       = :dr,
+//     credit      = 0,
+//     code        = :pcode,
+//     update_by   = :updateby,
+//     UPDATE_DATE = SYSDATE
+//   WHERE id = :cid`,
+//   {
+//     dr:    input.totalAmount,
+//     pcode: input.pcode,
+//     updateby: input.update_by ?? null,
+//     cid:   input.credit_id,
+//   },
+//   { autoCommit: false }
+// );
+
+      // ── 3. Update payment/cash code row — direction preserved ───────
+      const existingCashResult = await connection.execute(
+        `SELECT DEBIT, CREDIT FROM GLDETAILS WHERE id = :id`,
+        { id: input.credit_id },
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+      const existingCashRow = existingCashResult.rows[0];
+      const cashWasDebitSide = Number(existingCashRow?.DEBIT || 0) > 0;
+
+      await connection.execute(
+        `UPDATE GLDETAILS SET
+          debit       = :debitVal,
+          credit      = :creditVal,
+          code        = :pcode,
+          update_by   = :updateby,
+          UPDATE_DATE = SYSDATE
+        WHERE id = :cid`,
+        {
+          debitVal:  cashWasDebitSide ? input.totalAmount : 0,
+          creditVal: cashWasDebitSide ? 0 : input.totalAmount,
+          pcode: input.pcode,
+          updateby: input.update_by ?? null,
+          cid: input.credit_id,
+        },
+        { autoCommit: false }
+      );
       await connection.commit();
       return { masterID: input.masterID };
 

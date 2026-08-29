@@ -42,6 +42,7 @@ export async function getAllUnpostedGl() {
       H.POSTED,
       H.TYPE,
       H.REF_REVERSE_ENTRY,
+      (SELECT COUNT(*) FROM GLDOC D WHERE D.GLMASTERID = H.ID) AS DOC_COUNT,
       H.TRANS_DATE,
       H.GL_ENTRY_DATE,
       SUM(L.DEBIT)   AS DEBIT,

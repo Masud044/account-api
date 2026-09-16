@@ -117,7 +117,7 @@ export async function getAllUnpostedReceipts() {
       H.TRANS_DATE,
       H.GL_ENTRY_DATE
 
-    ORDER BY H.TRANS_DATE DESC
+    ORDER BY H.GL_ENTRY_DATE DESC
   `;
 
   return withConnection(async (conn) => {

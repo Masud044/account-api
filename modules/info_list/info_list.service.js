@@ -5,7 +5,8 @@ export async function getInfoList() {
     // --- 1. Fetch all unposted vouchers from GLMASTER ---
     const masterResult = await conn.execute(
       // "SELECT * FROM GLMASTER WHERE POSTED = 0 ORDER BY ID DESC",
-      "SELECT * FROM GLMASTER ORDER BY ID DESC",
+      // "SELECT * FROM GLMASTER ORDER BY ID DESC",
+      "SELECT * FROM GLMASTER ORDER BY GL_ENTRY_DATE DESC",
       {},
       { outFormat: 4002 }
     );

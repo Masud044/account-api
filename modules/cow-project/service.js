@@ -79,9 +79,49 @@ export const getCowProjectById = async (id) => {
   }
 };
 
+// export const updateCowProject = async (id, data) => {
+//   const conn = await getConnection();
+//   try {
+//     const result = await conn.execute(
+//       `UPDATE COW_PROJECT
+//          SET COW_NUMBER    = :cowNumber,
+//              PURCHASE_DATE = TO_DATE(:purchaseDate, 'YYYY-MM-DD'),
+//              SELLING_DATE  = TO_DATE(:sellingDate, 'YYYY-MM-DD'),
+//              PURCHASE_AMT  = :purchaseAmt,
+//              SELLING_AMT   = :sellingAmt,
+//              WEIGHT        = :weight,
+//              STATUS        = 1,
+//              UPDATE_BY     = :updateBy,
+//              UPDATE_DATE   = SYSDATE
+//        WHERE ID = :id`,
+//       {
+//         cowNumber:    data.cowNumber ?? null,
+//         purchaseDate: data.purchaseDate ?? null,
+//         sellingDate:  data.sellingDate ?? null,
+//         purchaseAmt:  data.purchaseAmt ?? null,
+//         sellingAmt:   data.sellingAmt ?? null,
+//         weight:       data.weight ?? null,
+//         updateBy:     data.updateBy ?? null,
+//         id,
+//       },
+//       { autoCommit: false }
+//     );
+//     if (result.rowsAffected === 0) throw new Error('Cow project not found.');
+//     await conn.commit();
+//     return { id, rowsAffected: result.rowsAffected };
+//   } catch (err) {
+//     await conn.rollback();
+//     throw err;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
 export const updateCowProject = async (id, data) => {
   const conn = await getConnection();
   try {
+    const status = data.sellingDate ? 0 : 1;
+
     const result = await conn.execute(
       `UPDATE COW_PROJECT
          SET COW_NUMBER    = :cowNumber,
@@ -90,7 +130,7 @@ export const updateCowProject = async (id, data) => {
              PURCHASE_AMT  = :purchaseAmt,
              SELLING_AMT   = :sellingAmt,
              WEIGHT        = :weight,
-             STATUS        = 1,
+             STATUS        = :status,
              UPDATE_BY     = :updateBy,
              UPDATE_DATE   = SYSDATE
        WHERE ID = :id`,
@@ -101,6 +141,7 @@ export const updateCowProject = async (id, data) => {
         purchaseAmt:  data.purchaseAmt ?? null,
         sellingAmt:   data.sellingAmt ?? null,
         weight:       data.weight ?? null,
+        status,
         updateBy:     data.updateBy ?? null,
         id,
       },

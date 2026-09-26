@@ -110,6 +110,7 @@ import ledgerPeriodRoutes from './modules/ledger-period-calendar/route.js';
 import notificationRoutes from './modules/app-notificaiton/route.js';
 import './modules/app-notificaiton/listener.js';
 import reverseVoucherRoute from "./modules/reverse-voucher/route.js";
+import farmBudgetReportRouter from "./modules/budget-report/route.js";
 
 
 
@@ -277,6 +278,8 @@ app.use("/api/v2/auth", authV2Route);
 //account report
 
 app.use("/api/report", saleExpenseReportRoute);
+
+app.use("/api/farm-budget-report", farmBudgetReportRouter);
 
 
 export default app;

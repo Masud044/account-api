@@ -120,6 +120,9 @@ import arRoutes from "./modules/ar/route.js";
 import journalRoutes from "./modules/journal/route.js";
 import reportsRoutes from "./modules/reports/route.js";
 import attachmentsRoutes from "./modules/attachments/route.js";
+import voucherReviewRoutes from "./modules/voucher-review/route.js";
+import chickenShedRoutes from "./modules/chicken-shed/route.js";
+
 
 
 
@@ -299,6 +302,9 @@ app.use("/api/farm-budget-report", farmBudgetReportRouter);
 
 
 
+
+app.use("/api", voucherReviewRoutes);
+app.use("/api/chicken-shed", chickenShedRoutes);
 
 //ap-ar
 

@@ -113,6 +113,20 @@ import reverseVoucherRoute from "./modules/reverse-voucher/route.js";
 import farmBudgetReportRouter from "./modules/budget-report/route.js";
 
 
+//ap-ar route
+
+import apRoutes from "./modules/ap/route.js";
+import arRoutes from "./modules/ar/route.js";
+import journalRoutes from "./modules/journal/route.js";
+import reportsRoutes from "./modules/reports/route.js";
+import attachmentsRoutes from "./modules/attachments/route.js";
+
+
+
+
+
+
+
 
 
 
@@ -280,6 +294,20 @@ app.use("/api/v2/auth", authV2Route);
 app.use("/api/report", saleExpenseReportRoute);
 
 app.use("/api/farm-budget-report", farmBudgetReportRouter);
+
+
+
+
+
+
+//ap-ar
+
+
+app.use("/api/ap", apRoutes);
+app.use("/api/ar", arRoutes);
+app.use("/api", journalRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/attachments", attachmentsRoutes);
 
 
 export default app;

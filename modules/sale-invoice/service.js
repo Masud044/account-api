@@ -480,84 +480,173 @@ await conn.execute(
 };
 
 
+// ─── helper: dashboard WHERE builder ─────────────────────────────
+const buildInvoiceWhere = (filters = {}, alias = '') => {
+  const p = alias ? `${alias}.` : '';
+  const conditions = [];
+  const binds = {};
+
+  if (filters.date) {
+    conditions.push(`TO_CHAR(${p}INVOICE_DATE, 'YYYY-MM-DD') = :date`);
+    binds.date = filters.date;
+  } else {
+    const month = Number(filters.month);
+    if (filters.month && Number.isInteger(month) && month >= 1 && month <= 12) {
+      conditions.push(`EXTRACT(MONTH FROM ${p}INVOICE_DATE) = :month`);
+      binds.month = month;
+    }
+
+    const year = Number(filters.year);
+    if (filters.year && Number.isInteger(year)) {
+      conditions.push(`EXTRACT(YEAR FROM ${p}INVOICE_DATE) = :year`);
+      binds.year = year;
+    }
+  }
+
+  const shedId = Number(filters.shedId);
+  if (filters.shedId && Number.isInteger(shedId) && shedId > 0) {
+    conditions.push(`${p}SHED_ID = :shedId`);
+    binds.shedId = shedId;
+  }
+
+  return {
+    whereClause: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '',
+    binds,
+  };
+};
+
+
 // ─── DASHBOARD: Invoice breakdown (date/month/year filter) ───────────────────
+// export const getInvoiceDashboardData = async (filters = {}) => {
+//   const conn = await getConnection();
+//   try {
+//     let whereClause = '';
+//     const binds = {};
+
+//     if (filters.date) {
+//       whereClause = `WHERE TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') = :date`;
+//       binds.date = filters.date;
+//     } else {
+//       const conditions = [];
+//       if (filters.month) {
+//         conditions.push(`EXTRACT(MONTH FROM h.INVOICE_DATE) = :month`);
+//         binds.month = Number(filters.month);
+//       }
+//       if (filters.year) {
+//         conditions.push(`EXTRACT(YEAR FROM h.INVOICE_DATE) = :year`);
+//         binds.year = Number(filters.year);
+//       }
+//       if (conditions.length) whereClause = `WHERE ${conditions.join(' AND ')}`;
+//     }
+
+//     const rowsResult = await conn.execute(
+//       `SELECT
+//          TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
+//          NVL(c.CUSTOMER_NAME, 'Unknown')        AS DESCRIPTION,
+//          h.TOT_AMT                              AS AMT
+//        FROM SAL_INVOICE_H h
+//        LEFT JOIN CUSTOMER_INFO c ON h.CUSTOMER_ID = c.CUSTOMER_ID
+//        ${whereClause}
+//        ORDER BY h.INVOICE_DATE DESC`,
+//       binds,
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
+
+//     const totalResult = await conn.execute(
+//       `SELECT NVL(SUM(h.TOT_AMT), 0) AS TOTAL
+//        FROM SAL_INVOICE_H h
+//        ${whereClause}`,
+//       binds,
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
+
+//     return {
+//       rows:  rowsResult.rows,
+//       total: totalResult.rows[0]?.TOTAL ?? 0,
+//     };
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
 export const getInvoiceDashboardData = async (filters = {}) => {
   const conn = await getConnection();
   try {
-    let whereClause = '';
-    const binds = {};
-
-    if (filters.date) {
-      whereClause = `WHERE TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') = :date`;
-      binds.date = filters.date;
-    } else {
-      const conditions = [];
-      if (filters.month) {
-        conditions.push(`EXTRACT(MONTH FROM h.INVOICE_DATE) = :month`);
-        binds.month = Number(filters.month);
-      }
-      if (filters.year) {
-        conditions.push(`EXTRACT(YEAR FROM h.INVOICE_DATE) = :year`);
-        binds.year = Number(filters.year);
-      }
-      if (conditions.length) whereClause = `WHERE ${conditions.join(' AND ')}`;
-    }
+    const { whereClause, binds } = buildInvoiceWhere(filters, 'h');
 
     const rowsResult = await conn.execute(
-      `SELECT
-         TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
-         NVL(c.CUSTOMER_NAME, 'Unknown')        AS DESCRIPTION,
-         h.TOT_AMT                              AS AMT
-       FROM SAL_INVOICE_H h
-       LEFT JOIN CUSTOMER_INFO c ON h.CUSTOMER_ID = c.CUSTOMER_ID
-       ${whereClause}
-       ORDER BY h.INVOICE_DATE DESC`,
+      `SELECT TO_CHAR(h.INVOICE_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
+              NVL(c.CUSTOMER_NAME, 'Unknown')        AS DESCRIPTION,
+              h.TOT_AMT                              AS AMT
+         FROM SAL_INVOICE_H h
+         LEFT JOIN CUSTOMER_INFO c ON h.CUSTOMER_ID = c.CUSTOMER_ID
+         ${whereClause}
+        ORDER BY h.INVOICE_DATE DESC`,
       binds,
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
 
     const totalResult = await conn.execute(
       `SELECT NVL(SUM(h.TOT_AMT), 0) AS TOTAL
-       FROM SAL_INVOICE_H h
-       ${whereClause}`,
+         FROM SAL_INVOICE_H h
+         ${whereClause}`,
       binds,
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
 
-    return {
-      rows:  rowsResult.rows,
-      total: totalResult.rows[0]?.TOTAL ?? 0,
-    };
+    return { rows: rowsResult.rows, total: totalResult.rows[0]?.TOTAL ?? 0 };
   } finally {
     await conn.close();
   }
 };
 
 // ─── DASHBOARD: Monthly invoice summary (for chart) ──────────────────────────
-export const getInvoiceMonthlySummary = async (year) => {
+// export const getInvoiceMonthlySummary = async (year) => {
+//   const conn = await getConnection();
+//   try {
+//     const binds = {};
+//     let whereClause = '';
+//     if (year) {
+//       whereClause = `WHERE EXTRACT(YEAR FROM INVOICE_DATE) = :year`;
+//       binds.year = Number(year);
+//     }
+
+//     const result = await conn.execute(
+//       `SELECT
+//          TO_CHAR(INVOICE_DATE, 'YYYY-MM') AS MONTH,
+//          SUM(TOT_AMT)                     AS TOTAL_AMT,
+//          SUM(TOT_QTY)                     AS TOTAL_QTY,
+//          COUNT(*)                         AS INVOICE_COUNT
+//        FROM SAL_INVOICE_H
+//        ${whereClause}
+//        GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM')
+//        ORDER BY MONTH ASC`,
+//       binds,
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
+
+//     return result.rows;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
+export const getInvoiceMonthlySummary = async (year, shedId) => {
   const conn = await getConnection();
   try {
-    const binds = {};
-    let whereClause = '';
-    if (year) {
-      whereClause = `WHERE EXTRACT(YEAR FROM INVOICE_DATE) = :year`;
-      binds.year = Number(year);
-    }
-
+    const { whereClause, binds } = buildInvoiceWhere({ year, shedId });
     const result = await conn.execute(
-      `SELECT
-         TO_CHAR(INVOICE_DATE, 'YYYY-MM') AS MONTH,
-         SUM(TOT_AMT)                     AS TOTAL_AMT,
-         SUM(TOT_QTY)                     AS TOTAL_QTY,
-         COUNT(*)                         AS INVOICE_COUNT
-       FROM SAL_INVOICE_H
-       ${whereClause}
-       GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM')
-       ORDER BY MONTH ASC`,
+      `SELECT TO_CHAR(INVOICE_DATE, 'YYYY-MM') AS MONTH,
+              SUM(TOT_AMT) AS TOTAL_AMT,
+              SUM(TOT_QTY) AS TOTAL_QTY,
+              COUNT(*)     AS INVOICE_COUNT
+         FROM SAL_INVOICE_H
+         ${whereClause}
+        GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM')
+        ORDER BY MONTH ASC`,
       binds,
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     return result.rows;
   } finally {
     await conn.close();
@@ -566,36 +655,58 @@ export const getInvoiceMonthlySummary = async (year) => {
 
 
 // ─── DASHBOARD: Daily invoice summary (for chart) ────────────────────────────
-export const getInvoiceDailySummary = async (month, year) => {
+// export const getInvoiceDailySummary = async (month, year) => {
+//   const conn = await getConnection();
+//   try {
+//     const binds = {};
+//     const conditions = [];
+
+//     if (month) {
+//       conditions.push(`EXTRACT(MONTH FROM INVOICE_DATE) = :month`);
+//       binds.month = Number(month);
+//     }
+//     if (year) {
+//       conditions.push(`EXTRACT(YEAR FROM INVOICE_DATE) = :year`);
+//       binds.year = Number(year);
+//     }
+//     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+//     const result = await conn.execute(
+//       `SELECT
+//          TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD') AS DAY,
+//          SUM(TOT_AMT)                        AS TOTAL_AMT,
+//          SUM(TOT_QTY)                        AS TOTAL_QTY,
+//          COUNT(*)                            AS INVOICE_COUNT
+//        FROM SAL_INVOICE_H
+//        ${whereClause}
+//        GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD')
+//        ORDER BY DAY ASC`,
+//       binds,
+//       { outFormat: oracledb.OUT_FORMAT_OBJECT }
+//     );
+
+//     return result.rows;
+//   } finally {
+//     await conn.close();
+//   }
+// };
+
+export const getInvoiceDailySummary = async (month, year, shedId) => {
   const conn = await getConnection();
   try {
-    const binds = {};
-    const conditions = [];
-
-    if (month) {
-      conditions.push(`EXTRACT(MONTH FROM INVOICE_DATE) = :month`);
-      binds.month = Number(month);
-    }
-    if (year) {
-      conditions.push(`EXTRACT(YEAR FROM INVOICE_DATE) = :year`);
-      binds.year = Number(year);
-    }
-    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-
+    const { whereClause, binds } = buildInvoiceWhere({ month, year, shedId });
     const result = await conn.execute(
-      `SELECT
-         TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD') AS DAY,
-         SUM(TOT_AMT)                        AS TOTAL_AMT,
-         SUM(TOT_QTY)                        AS TOTAL_QTY,
-         COUNT(*)                            AS INVOICE_COUNT
-       FROM SAL_INVOICE_H
-       ${whereClause}
-       GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD')
-       ORDER BY DAY ASC`,
+      `SELECT TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD') AS DAY,
+              SUM(TOT_AMT) AS TOTAL_AMT,
+              SUM(TOT_QTY) AS TOTAL_QTY,
+              COUNT(*)     AS INVOICE_COUNT
+         FROM SAL_INVOICE_H
+         ${whereClause}
+        GROUP BY TO_CHAR(INVOICE_DATE, 'YYYY-MM-DD')
+        ORDER BY DAY ASC`,
       binds,
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     return result.rows;
   } finally {
     await conn.close();

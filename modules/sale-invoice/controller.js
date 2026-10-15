@@ -60,10 +60,44 @@ export const update = async (req, res) => {
 
 
 // GET /api/sal-invoice/dashboard/breakdown
+// export const dashboardBreakdown = async (req, res) => {
+//   try {
+//     const { date, month, year } = req.query;
+//     const result = await invoiceService.getInvoiceDashboardData({ date, month, year });
+//     res.json({ success: true, data: result });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// GET /api/sal-invoice/dashboard/monthly-summary
+// export const dashboardMonthlySummary = async (req, res) => {
+//   try {
+//     const { year } = req.query;
+//     const rows = await invoiceService.getInvoiceMonthlySummary(year);
+//     res.json({ success: true, data: rows });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// GET /api/sal-invoice/dashboard/daily-summary
+// export const dashboardDailySummary = async (req, res) => {
+//   try {
+//     const { month, year } = req.query;
+//     const rows = await invoiceService.getInvoiceDailySummary(month, year);
+//     res.json({ success: true, data: rows });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+
+// GET /api/sal-invoice/dashboard/breakdown
 export const dashboardBreakdown = async (req, res) => {
   try {
-    const { date, month, year } = req.query;
-    const result = await invoiceService.getInvoiceDashboardData({ date, month, year });
+    const { date, month, year, shedId } = req.query;
+    const result = await invoiceService.getInvoiceDashboardData({ date, month, year, shedId });
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -73,8 +107,8 @@ export const dashboardBreakdown = async (req, res) => {
 // GET /api/sal-invoice/dashboard/monthly-summary
 export const dashboardMonthlySummary = async (req, res) => {
   try {
-    const { year } = req.query;
-    const rows = await invoiceService.getInvoiceMonthlySummary(year);
+    const { year, shedId } = req.query;
+    const rows = await invoiceService.getInvoiceMonthlySummary(year, shedId);
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -84,8 +118,8 @@ export const dashboardMonthlySummary = async (req, res) => {
 // GET /api/sal-invoice/dashboard/daily-summary
 export const dashboardDailySummary = async (req, res) => {
   try {
-    const { month, year } = req.query;
-    const rows = await invoiceService.getInvoiceDailySummary(month, year);
+    const { month, year, shedId } = req.query;
+    const rows = await invoiceService.getInvoiceDailySummary(month, year, shedId);
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

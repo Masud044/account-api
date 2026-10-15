@@ -1,5 +1,11 @@
 import * as eggProductionService from './service.js';
 
+// shedId valid positive integer na hole null (mane filter lagbe na)
+const parseShedId = (v) => {
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+
 export const create = async (req, res) => {
   try {
     const result = await eggProductionService.createEggProduction(req.body);
@@ -77,25 +83,25 @@ export const update = async (req, res) => {
 // };
 
 
-export const getAll = async (req, res) => {
-  try {
-    const { fromDate, toDate, page = 1, limit = 20, excludeInvoiced } = req.query;
+// export const getAll = async (req, res) => {
+//   try {
+//     const { fromDate, toDate, page = 1, limit = 20, excludeInvoiced } = req.query;
 
-    if (fromDate && toDate) {
-      const rows = await eggProductionService.getEggProductionByDateRange(fromDate, toDate);
-      return res.json({ success: true, data: rows });
-    }
+//     if (fromDate && toDate) {
+//       const rows = await eggProductionService.getEggProductionByDateRange(fromDate, toDate);
+//       return res.json({ success: true, data: rows });
+//     }
 
-    const rows = await eggProductionService.getAllEggProduction({
-      page: Number(page),
-      limit: Number(limit),
-      excludeInvoiced: excludeInvoiced === 'true',   // ← নতুন
-    });
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//     const rows = await eggProductionService.getAllEggProduction({
+//       page: Number(page),
+//       limit: Number(limit),
+//       excludeInvoiced: excludeInvoiced === 'true',   // ← নতুন
+//     });
+//     res.json({ success: true, data: rows });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 
 export const getSingle = async (req, res) => {
   try {
@@ -121,22 +127,75 @@ export const remove = async (req, res) => {
 };
 
 // ─── Add this to your existing controller.js ─────────────────────────────────
-export const getMonthlySummary = async (req, res) => {
+// export const getMonthlySummary = async (req, res) => {
+//   try {
+//     const year = req.query.year ?? new Date().getFullYear();
+//     const rows = await eggProductionService.getMonthlyProduction(year);
+//     res.json({ success: true, data: rows });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// controller.js এর একদম শেষে paste করো
+
+// export const getMonthlySummaryWithAvg = async (req, res) => {
+//   try {
+//     const year = req.query.year ?? new Date().getFullYear();
+//     const rows = await eggProductionService.getMonthlySummaryWithAvg(year);
+//     res.json({ success: true, data: rows });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// export const getDailyTrend = async (req, res) => {
+//   try {
+//     const year  = req.query.year  ?? new Date().getFullYear();
+//     const month = req.query.month ?? new Date().getMonth() + 1;
+//     const rows  = await eggProductionService.getDailyTrend(year, month);
+//     res.json({ success: true, data: rows });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+export const getAll = async (req, res) => {
   try {
-    const year = req.query.year ?? new Date().getFullYear();
-    const rows = await eggProductionService.getMonthlyProduction(year);
+    const { fromDate, toDate, page = 1, limit = 20, excludeInvoiced } = req.query;
+    const shedId = parseShedId(req.query.shedId);
+
+    if (fromDate && toDate) {
+      const rows = await eggProductionService.getEggProductionByDateRange(fromDate, toDate, shedId);
+      return res.json({ success: true, data: rows });
+    }
+
+    const rows = await eggProductionService.getAllEggProduction({
+      page: Number(page),
+      limit: Number(limit),
+      excludeInvoiced: excludeInvoiced === 'true',
+      shedId,
+    });
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// controller.js এর একদম শেষে paste করো
+export const getMonthlySummary = async (req, res) => {
+  try {
+    const year = req.query.year ?? new Date().getFullYear();
+    const rows = await eggProductionService.getMonthlyProduction(year, parseShedId(req.query.shedId));
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 export const getMonthlySummaryWithAvg = async (req, res) => {
   try {
     const year = req.query.year ?? new Date().getFullYear();
-    const rows = await eggProductionService.getMonthlySummaryWithAvg(year);
+    const rows = await eggProductionService.getMonthlySummaryWithAvg(year, parseShedId(req.query.shedId));
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -147,7 +206,7 @@ export const getDailyTrend = async (req, res) => {
   try {
     const year  = req.query.year  ?? new Date().getFullYear();
     const month = req.query.month ?? new Date().getMonth() + 1;
-    const rows  = await eggProductionService.getDailyTrend(year, month);
+    const rows  = await eggProductionService.getDailyTrend(year, month, parseShedId(req.query.shedId));
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

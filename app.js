@@ -124,6 +124,12 @@ import voucherReviewRoutes from "./modules/voucher-review/route.js";
 import chickenShedRoutes from "./modules/chicken-shed/route.js";
 
 
+import chickenMortalityReasonRoutes from './modules/chicken-reason/route.js';
+import chickenProjectMortalityRoutes from './modules/chicken-morality/route.js';
+
+
+
+
 
 
 
@@ -305,6 +311,9 @@ app.use("/api/farm-budget-report", farmBudgetReportRouter);
 
 app.use("/api", voucherReviewRoutes);
 app.use("/api/chicken-shed", chickenShedRoutes);
+
+app.use('/api/chicken-mortality-reason', chickenMortalityReasonRoutes);
+app.use('/api/chicken-project-mortality', chickenProjectMortalityRoutes);
 
 //ap-ar
 

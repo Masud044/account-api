@@ -26,40 +26,102 @@ export async function getIncomeTotal({ month, year }) {
   });
 }
 
+// export async function getIncomeBreakdown({ month, year, date } = {}) {
+//   let sql = `
+//     SELECT DESCRIPTION, SUM(DEBIT) AS AMT, GL_ENTRY_DATE
+//     FROM GLDATA
+//     WHERE VOUCHER_TYPE = 'Income'
+//   `;
+
+//   const binds = {};
+
+//   if (date) {
+//     // specific date
+//     binds.exact_date = date;
+//     sql += ` AND TRUNC(GL_ENTRY_DATE) = TO_DATE(:exact_date, 'YYYY-MM-DD') `;
+//   } else if (month && year) {
+//     const mm = String(month).padStart(2, "0");
+//     binds.date_bv = `${mm}-${year}`;
+//     sql += `
+//       AND GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
+//       AND GL_ENTRY_DATE < ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
+//     `;
+//   } else if (year) {
+//     binds.year_start = `01-${year}`;
+//     binds.year_end   = `01-${year + 1}`;
+//     sql += `
+//       AND GL_ENTRY_DATE >= TO_DATE(:year_start, 'MM-YYYY')
+//       AND GL_ENTRY_DATE < TO_DATE(:year_end, 'MM-YYYY')
+//     `;
+//   } else if (month) {
+//     sql += ` AND EXTRACT(MONTH FROM GL_ENTRY_DATE) = :month_bv `;
+//     binds.month_bv = month;
+//   }
+
+//   sql += ` GROUP BY DESCRIPTION, GL_ENTRY_DATE ORDER BY GL_ENTRY_DATE `;
+
+//   return withConnection(async (conn) => {
+//     const result = await conn.execute(sql, binds, { outFormat: 4002 });
+//     const rows = result.rows ?? [];
+//     const total = rows.reduce((sum, row) => sum + (Number(row.AMT) || 0), 0);
+//     return { total, rows };
+//   });
+// }
+
+
 export async function getIncomeBreakdown({ month, year, date } = {}) {
   let sql = `
-    SELECT DESCRIPTION, SUM(DEBIT) AS AMT, GL_ENTRY_DATE
-    FROM GLDATA
-    WHERE VOUCHER_TYPE = 'Income'
+    SELECT
+      H.ID,
+      H.DESCRIPTION,
+      SUM(L.CREDIT) AS AMT,
+      H.GL_ENTRY_DATE
+    FROM GLMASTER H
+    JOIN GLDETAILS L ON L.GLMASTERID = H.ID
+    WHERE H.VOUCHER_TYPE = 1
+      AND NVL(H.TYPE, 'X') <> 'REVERSE'
+      AND H.REF_REVERSE_ENTRY IS NULL
   `;
 
   const binds = {};
 
   if (date) {
-    // specific date
     binds.exact_date = date;
-    sql += ` AND TRUNC(GL_ENTRY_DATE) = TO_DATE(:exact_date, 'YYYY-MM-DD') `;
+    sql += ` AND TRUNC(H.GL_ENTRY_DATE) = TO_DATE(:exact_date, 'YYYY-MM-DD') `;
   } else if (month && year) {
     const mm = String(month).padStart(2, "0");
     binds.date_bv = `${mm}-${year}`;
     sql += `
-      AND GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
-      AND GL_ENTRY_DATE < ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
+      AND H.GL_ENTRY_DATE >= TO_DATE(:date_bv, 'MM-YYYY')
+      AND H.GL_ENTRY_DATE <  ADD_MONTHS(TO_DATE(:date_bv, 'MM-YYYY'), 1)
     `;
   } else if (year) {
     binds.year_start = `01-${year}`;
-    binds.year_end   = `01-${year + 1}`;
+    binds.year_end = `01-${Number(year) + 1}`;
     sql += `
-      AND GL_ENTRY_DATE >= TO_DATE(:year_start, 'MM-YYYY')
-      AND GL_ENTRY_DATE < TO_DATE(:year_end, 'MM-YYYY')
+      AND H.GL_ENTRY_DATE >= TO_DATE(:year_start, 'MM-YYYY')
+      AND H.GL_ENTRY_DATE <  TO_DATE(:year_end, 'MM-YYYY')
     `;
   } else if (month) {
-    sql += ` AND EXTRACT(MONTH FROM GL_ENTRY_DATE) = :month_bv `;
+    sql += ` AND EXTRACT(MONTH FROM H.GL_ENTRY_DATE) = :month_bv `;
     binds.month_bv = month;
   }
 
-  sql += ` GROUP BY DESCRIPTION, GL_ENTRY_DATE ORDER BY GL_ENTRY_DATE `;
+  // sql += `
+  //   GROUP BY H.ID, H.DESCRIPTION, H.GL_ENTRY_DATE
+  //   ORDER BY H.GL_ENTRY_DATE
+  // `;
 
+  //   sql += `
+  //   GROUP BY H.ID, H.DESCRIPTION, H.GL_ENTRY_DATE
+  //   ORDER BY H.GL_ENTRY_DATE DESC, H.ID DESC
+  // `;
+  sql += `
+  GROUP BY H.ID, H.DESCRIPTION, H.GL_ENTRY_DATE
+  HAVING NVL(SUM(L.CREDIT), 0) > 0
+  ORDER BY H.GL_ENTRY_DATE DESC, H.ID DESC
+`;
+  
   return withConnection(async (conn) => {
     const result = await conn.execute(sql, binds, { outFormat: 4002 });
     const rows = result.rows ?? [];
@@ -67,5 +129,4 @@ export async function getIncomeBreakdown({ month, year, date } = {}) {
     return { total, rows };
   });
 }
-
 

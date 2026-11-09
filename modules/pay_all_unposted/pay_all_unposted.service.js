@@ -1,28 +1,77 @@
+// // // import { withConnection } from "../../config/db.js";
+
+// // // export async function getAllUnpostedPayments() {
+// // //  const sql = `
+// // //   SELECT
+// // //     H.ID,
+// // //     H.VOUCHERNO,
+// // //     H.DESCRIPTION,
+// // //     H.POSTED,
+// // //     TO_CHAR(H.TRANS_DATE, 'YYYY-MM-DD') AS TRANS_DATE,
+// // //     TO_CHAR(H.GL_ENTRY_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
+// // //     SUM(L.CREDIT) AS CREDIT
+// // //   FROM GLDETAILS L
+// // //   JOIN GLMASTER H ON H.ID = L.GLMASTERID
+// // //   WHERE H.VOUCHER_TYPE = 2
+// // //   GROUP BY H.ID, H.VOUCHERNO, H.DESCRIPTION, H.POSTED, H.TRANS_DATE, H.GL_ENTRY_DATE
+// // //   ORDER BY H.TRANS_DATE DESC
+// // // `;
+// // //   return withConnection(async (conn) => {
+// // //     const result = await conn.execute(sql, {}, { outFormat: 4002 });
+// // //     const rows = (result.rows || []).map((r) => ({
+// // //       ...r,
+// // //       CREDIT: r.CREDIT != null ? Number(r.CREDIT) : 0,
+// // //     }));
+// // //     return { count: rows.length, data: rows };
+// // //   });
+// // // }
+
 // // import { withConnection } from "../../config/db.js";
 
 // // export async function getAllUnpostedPayments() {
-// //  const sql = `
-// //   SELECT
-// //     H.ID,
-// //     H.VOUCHERNO,
-// //     H.DESCRIPTION,
-// //     H.POSTED,
-// //     TO_CHAR(H.TRANS_DATE, 'YYYY-MM-DD') AS TRANS_DATE,
-// //     TO_CHAR(H.GL_ENTRY_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
-// //     SUM(L.CREDIT) AS CREDIT
-// //   FROM GLDETAILS L
-// //   JOIN GLMASTER H ON H.ID = L.GLMASTERID
-// //   WHERE H.VOUCHER_TYPE = 2
-// //   GROUP BY H.ID, H.VOUCHERNO, H.DESCRIPTION, H.POSTED, H.TRANS_DATE, H.GL_ENTRY_DATE
-// //   ORDER BY H.TRANS_DATE DESC
-// // `;
+// //   const sql = `
+// //     SELECT
+// //       H.ID,
+// //       H.VOUCHERNO,
+// //       H.DESCRIPTION,
+// //       H.POSTED,
+// //       H.TYPE,
+// //       H.REF_REVERSE_ENTRY,
+// //       (SELECT COUNT(*) FROM GLDOC D WHERE D.GLMASTERID = H.ID) AS DOC_COUNT,
+// //       TO_CHAR(H.TRANS_DATE, 'YYYY-MM-DD') AS TRANS_DATE,
+// //       TO_CHAR(H.GL_ENTRY_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
+// //       SUM(L.CREDIT) AS CREDIT
+// //     FROM GLDETAILS L
+// //     JOIN GLMASTER H ON H.ID = L.GLMASTERID
+// //     WHERE H.VOUCHER_TYPE = 2
+// //     GROUP BY
+// //       H.ID,
+// //       H.VOUCHERNO,
+// //       H.DESCRIPTION,
+// //       H.POSTED,
+// //       H.TYPE,
+// //       H.REF_REVERSE_ENTRY,
+// //       H.TRANS_DATE,
+// //       H.GL_ENTRY_DATE
+// //     ORDER BY H.TRANS_DATE DESC
+// //   `;
+
 // //   return withConnection(async (conn) => {
-// //     const result = await conn.execute(sql, {}, { outFormat: 4002 });
+// //     const result = await conn.execute(
+// //       sql,
+// //       {},
+// //       { outFormat: 4002 }
+// //     );
+
 // //     const rows = (result.rows || []).map((r) => ({
 // //       ...r,
 // //       CREDIT: r.CREDIT != null ? Number(r.CREDIT) : 0,
 // //     }));
-// //     return { count: rows.length, data: rows };
+
+// //     return {
+// //       count: rows.length,
+// //       data: rows,
+// //     };
 // //   });
 // // }
 
@@ -37,13 +86,31 @@
 //       H.POSTED,
 //       H.TYPE,
 //       H.REF_REVERSE_ENTRY,
-//       (SELECT COUNT(*) FROM GLDOC D WHERE D.GLMASTERID = H.ID) AS DOC_COUNT,
+
+//       H.CUSTOMER_ID,
+//       S.SUPPLIER_NAME AS SUPPLIER,
+
+//       (
+//         SELECT COUNT(*)
+//         FROM GLDOC D
+//         WHERE D.GLMASTERID = H.ID
+//       ) AS DOC_COUNT,
+
 //       TO_CHAR(H.TRANS_DATE, 'YYYY-MM-DD') AS TRANS_DATE,
 //       TO_CHAR(H.GL_ENTRY_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
+
 //       SUM(L.CREDIT) AS CREDIT
+
 //     FROM GLDETAILS L
-//     JOIN GLMASTER H ON H.ID = L.GLMASTERID
+
+//     JOIN GLMASTER H
+//       ON H.ID = L.GLMASTERID
+
+//     LEFT JOIN SUPPLIER_INFO S
+//       ON S.SUPPLIER_ID = H.CUSTOMER_ID
+
 //     WHERE H.VOUCHER_TYPE = 2
+
 //     GROUP BY
 //       H.ID,
 //       H.VOUCHERNO,
@@ -51,9 +118,12 @@
 //       H.POSTED,
 //       H.TYPE,
 //       H.REF_REVERSE_ENTRY,
+//       H.CUSTOMER_ID,
+//       S.SUPPLIER_NAME,
 //       H.TRANS_DATE,
 //       H.GL_ENTRY_DATE
-//     ORDER BY H.TRANS_DATE DESC
+
+//     ORDER BY H.GL_ENTRY_DATE DESC
 //   `;
 
 //   return withConnection(async (conn) => {
@@ -74,6 +144,7 @@
 //     };
 //   });
 // }
+
 
 import { withConnection } from "../../config/db.js";
 
@@ -99,6 +170,11 @@ export async function getAllUnpostedPayments() {
       TO_CHAR(H.TRANS_DATE, 'YYYY-MM-DD') AS TRANS_DATE,
       TO_CHAR(H.GL_ENTRY_DATE, 'YYYY-MM-DD') AS GL_ENTRY_DATE,
 
+      CASE
+        WHEN NVL(H.TYPE, 'X') = 'REVERSE' OR H.REF_REVERSE_ENTRY IS NOT NULL
+        THEN 1 ELSE 0
+      END AS IS_REVERSE,
+
       SUM(L.CREDIT) AS CREDIT
 
     FROM GLDETAILS L
@@ -110,6 +186,8 @@ export async function getAllUnpostedPayments() {
       ON S.SUPPLIER_ID = H.CUSTOMER_ID
 
     WHERE H.VOUCHER_TYPE = 2
+      AND (NVL(H.TYPE, 'X') = 'REVERSE' OR H.REF_REVERSE_ENTRY IS NULL)
+      AND UPPER(NVL(H.DESCRIPTION, ' ')) NOT LIKE '%REFUNDED%'
 
     GROUP BY
       H.ID,
@@ -123,23 +201,21 @@ export async function getAllUnpostedPayments() {
       H.TRANS_DATE,
       H.GL_ENTRY_DATE
 
-    ORDER BY H.GL_ENTRY_DATE DESC
+    ORDER BY H.GL_ENTRY_DATE DESC, H.ID DESC
   `;
 
   return withConnection(async (conn) => {
-    const result = await conn.execute(
-      sql,
-      {},
-      { outFormat: 4002 }
-    );
+    const result = await conn.execute(sql, {}, { outFormat: 4002 });
 
     const rows = (result.rows || []).map((r) => ({
       ...r,
       CREDIT: r.CREDIT != null ? Number(r.CREDIT) : 0,
+      IS_REVERSE: Number(r.IS_REVERSE) === 1,
     }));
 
     return {
       count: rows.length,
+      total: rows.reduce((s, r) => s + r.CREDIT, 0),
       data: rows,
     };
   });

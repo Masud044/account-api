@@ -127,22 +127,8 @@ import chickenShedRoutes from "./modules/chicken-shed/route.js";
 import chickenMortalityReasonRoutes from './modules/chicken-reason/route.js';
 import chickenProjectMortalityRoutes from './modules/chicken-morality/route.js';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import incomeReportRouter from "./modules/income-report/route.js";
+import expenseGlReportRouter from "./modules/expense-report/route.js";
 
 
 
@@ -303,6 +289,11 @@ app.use("/api/v2/auth", authV2Route);
 app.use("/api/report", saleExpenseReportRoute);
 
 app.use("/api/farm-budget-report", farmBudgetReportRouter);
+
+
+app.use("/api/income-gl-report", incomeReportRouter);
+
+app.use("/api/expense-gl-report", expenseGlReportRouter);
 
 
 

@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 
 import authV2Route from "./modules/auth-v2/auth-v2.routes.js";
+import dbUpdateRoute from "./modules/db-update/db-update.routes.js";
  
 
 
@@ -138,7 +139,7 @@ import balanceSheetRouter from "./modules/balance-report/route.js";
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: "5mb" }));
 
 // app.use(cors({
 //   origin: [
@@ -154,6 +155,7 @@ app.use(cors({
 
 
 app.use("/api/v2/auth", authV2Route); // login route — protect korar age
+app.use("/api/v2/dbupdate", dbUpdateRoute);
 
 app.get("/", async (_req, res) => {
   res.send("Server running");

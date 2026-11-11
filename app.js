@@ -129,6 +129,8 @@ import chickenProjectMortalityRoutes from './modules/chicken-morality/route.js';
 
 import incomeReportRouter from "./modules/income-report/route.js";
 import expenseGlReportRouter from "./modules/expense-report/route.js";
+import balanceSheetRouter from "./modules/balance-report/route.js";
+
 
 
 
@@ -294,7 +296,7 @@ app.use("/api/farm-budget-report", farmBudgetReportRouter);
 app.use("/api/income-gl-report", incomeReportRouter);
 
 app.use("/api/expense-gl-report", expenseGlReportRouter);
-
+app.use("/api/balance-sheet-report", balanceSheetRouter);
 
 
 

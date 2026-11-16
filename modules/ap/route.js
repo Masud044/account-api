@@ -36,4 +36,11 @@ router.post('/cancel_payment', controller.cancelPayment);
 router.post('/refund_advance', controller.refundAdvance);
 router.post('/cancel_refund', controller.cancelRefund);
 
+
+router.get('/edit_data/:type/:id', controller.getEditData);
+router.post('/update_advance', controller.updateAdvance);
+router.post('/update_invoice', controller.updateInvoice);
+router.post('/update_refund', controller.updateRefund);
+router.post('/update_payment', controller.updatePayment);
+
 export default router;

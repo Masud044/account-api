@@ -241,3 +241,75 @@ export async function resolveGlMasterIds(module, sourceType, sourceId) {
   }
   return rows.map((r) => r.id);
 }
+
+
+
+/**
+ * Rewrites an existing journal IN PLACE on the caller's connection (no commit here).
+ * Same JOURNAL_ID / JOURNAL_NO, same GLMASTER row; GLDETAILS are deleted and re-inserted.
+ * Throws on any problem so the caller can rollback. Nothing is swallowed.
+ */
+export async function rewriteJournalTx(conn, { journalId, journalNo, date, description, lines }) {
+  const o = { autoCommit: false, outFormat: oracledb.OUT_FORMAT_OBJECT };
+  const clean = lines.filter((l) => Number(l.debit || 0) > 0 || Number(l.credit || 0) > 0);
+  let dr = 0, cr = 0;
+  for (const l of clean) { dr += Number(l.debit || 0); cr += Number(l.credit || 0); }
+  dr = Math.round(dr * 100) / 100; cr = Math.round(cr * 100) / 100;
+  if (!clean.length || Math.abs(dr - cr) > 0.01) throw new Error(`Journal out of balance: Debit ${dr} vs Credit ${cr}`);
+  const jdesc = String(description || 'Journal').slice(0, 150);
+
+  await conn.execute(
+    `UPDATE XX_AP_JOURNAL_H_T SET JOURNAL_DATE = TO_DATE(:p_date,'YYYY-MM-DD'), DESCRIPTION = :p_desc, TOTAL_AMOUNT = :total
+      WHERE JOURNAL_ID = :jid`,
+    { p_date: date, p_desc: jdesc, total: dr, jid: journalId }, o);
+  await conn.execute(`DELETE FROM XX_AP_JOURNAL_L_T WHERE JOURNAL_ID = :jid`, { jid: journalId }, o);
+  let n = 0;
+  for (const l of clean) {
+    await conn.execute(
+      `INSERT INTO XX_AP_JOURNAL_L_T (JOURNAL_LINE_ID, JOURNAL_ID, LINE_NO, ACCOUNT_CODE, DEBIT_AMOUNT, CREDIT_AMOUNT, DESCRIPTION)
+       VALUES (XX_AP_JOURNAL_L_S.NEXTVAL, :jid, :lno, :acc, :dr, :cr, :p_desc)`,
+      { jid: journalId, lno: ++n, acc: l.account, dr: Number(l.debit || 0), cr: Number(l.credit || 0), p_desc: String(l.desc || jdesc).slice(0, 150) }, o);
+  }
+
+  // ---- GL mirror (same GLMASTER row) ----
+  const gm = (await conn.execute(`SELECT ID AS "id", POSTED AS "posted" FROM GLMASTER WHERE VOUCHERNO = :vno FOR UPDATE`, { vno: journalNo }, o)).rows || [];
+  if (!gm.length) return { glUpdated: false };
+  if (gm.some((g) => Number(g.posted) === 1)) throw new Error('This voucher has already been posted to the general ledger.');
+  const gid = gm[0].id;
+
+  const codes = [...new Set(clean.map((l) => l.account))];
+  const binds = {};
+  codes.forEach((c, i) => { binds['c' + i] = c; });
+  const acc = (await conn.execute(
+    `SELECT ACCOUNT_ID AS "code", ACCOUNT_NAME AS "name", ACCOUNT_TYPE AS "type" FROM CHART_OF_ACCOUNT WHERE ACCOUNT_ID IN (${codes.map((_, i) => ':c' + i).join(',')})`,
+    binds, o)).rows || [];
+  const info = {};
+  for (const a of acc) info[a.code] = a;
+
+  const merged = {};
+  for (const l of clean) {
+    const a = info[l.account];
+    if (!a) continue; // unknown account: skipped, same as postLegacyGl
+    const m = (merged[l.account] ||= { debit: 0, credit: 0, desc: l.desc || jdesc, isBank: Number(a.type) === 1, name: a.name });
+    m.debit += Number(l.debit || 0); m.credit += Number(l.credit || 0);
+  }
+  const mc = Object.keys(merged);
+  const cashCodes = mc.filter((c) => merged[c].isBank);
+  let vtype = 3, cash = null;
+  if (cashCodes.length === 1) { cash = cashCodes[0]; vtype = merged[cash].debit > 0 ? 1 : 2; }
+
+  await conn.execute(
+    `UPDATE GLMASTER SET TRANS_DATE = TO_DATE(:p_date,'YYYY-MM-DD'), GL_ENTRY_DATE = TO_DATE(:p_date,'YYYY-MM-DD'),
+            VOUCHER_TYPE = :vt, DESCRIPTION = :p_desc, CASHACCOUNT = :cash, UPDATE_DATE = SYSDATE
+      WHERE ID = :gid`,
+    { p_date: date, vt: vtype, p_desc: jdesc, cash, gid }, o);
+  await conn.execute(`DELETE FROM GLDETAILS WHERE GLMASTERID = :gid`, { gid }, o);
+  for (const code of mc) {
+    const m = merged[code];
+    await conn.execute(
+      `INSERT INTO GLDETAILS (GLMASTERID, CODE, DEBIT, CREDIT, CODEDESCRIPTION, DESCRIPTION)
+       VALUES (:mid, :code, :dr, :cr, :cdesc, :p_desc)`,
+      { mid: gid, code, dr: m.debit, cr: m.credit, cdesc: m.name, p_desc: String(m.desc).slice(0, 150) }, o);
+  }
+  return { glUpdated: true };
+}

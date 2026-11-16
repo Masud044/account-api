@@ -140,3 +140,18 @@ export const cancelRefund = async (req, res) => {
   if (result.status !== 200) return res.status(result.status).json(result.body);
   res.json(result.body);
 };
+
+export const updatePayment = async (req, res) => {
+  const result = await service.updatePayment(req.body);
+  if (result.status !== 200) return res.status(result.status).json(result.body);
+  res.json(result.body);
+};
+
+const wrap = (fn) => async (req, res) => {
+  try { const r = await fn(req); res.status(r.status).json(r.body); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+};
+export const getEditData = wrap((req) => service.getEditData(req.params));
+export const updateAdvance = wrap((req) => service.updateAdvance(req.body));
+export const updateInvoice = wrap((req) => service.updateInvoice(req.body));
+export const updateRefund = wrap((req) => service.updateRefund(req.body));

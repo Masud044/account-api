@@ -27,6 +27,7 @@ router.get('/vendors', controller.listVendors);
 router.get('/coa', controller.getCoa);
 router.get('/vendor/:id', controller.getVendor);
 router.get('/transaction/:sourceType/:sourceId', controller.getTransaction);
+router.get('/advance_detail/:id', controller.getAdvanceDetail);
 router.post('/vendors', controller.createVendor);
 router.post('/record_advance', controller.recordAdvance);
 router.post('/save_invoice', controller.saveInvoice);

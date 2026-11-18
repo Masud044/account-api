@@ -151,6 +151,7 @@ const wrap = (fn) => async (req, res) => {
   try { const r = await fn(req); res.status(r.status).json(r.body); }
   catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 };
+export const getAdvanceDetail = wrap((req) => service.getAdvanceDetail(req.params));
 export const getEditData = wrap((req) => service.getEditData(req.params));
 export const updateAdvance = wrap((req) => service.updateAdvance(req.body));
 export const updateInvoice = wrap((req) => service.updateInvoice(req.body));

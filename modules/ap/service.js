@@ -4166,3 +4166,103 @@ export const updateSettlement = async (body) => {
     });
   });
 };
+
+
+
+// ---------------------------------------------------------------- everything created under one advance
+export const getAdvanceDetail = async (params) => {
+  const id = parseInt(params.id, 10);
+  if (!id) return { status: 400, body: { ok: false, error: 'Invalid advance' } };
+
+  const h = (await runSelect(
+    `SELECT ADVANCE_NO AS "no", TO_CHAR(ADVANCE_DATE,'YYYY-MM-DD') AS "date", BANK_ACCOUNT_CODE AS "bank",
+            PAYMENT_METHOD AS "method", REFERENCE_NO AS "ref", NVL(ADVANCE_AMOUNT,0) AS "total",
+            NVL(ADJUSTED_AMOUNT,0) AS "adjusted", NVL(REFUNDED_AMOUNT,0) AS "refunded",
+            NVL(BALANCE_AMOUNT,0) AS "balance", STATUS AS "status", SUPPLIER_ID AS "supplierId"
+       FROM XX_AP_ADVANCE_T WHERE ADVANCE_ID = :id`, { id }))[0];
+  if (!h) return { status: 404, body: { ok: false, error: 'Advance not found' } };
+
+  const sup = (await runSelect(`SELECT SUPPLIER_NAME AS "name" FROM SUPPLIER_INFO WHERE SUPPLIER_ID = :s`, { s: h.supplierId }))[0];
+  const bankName = h.bank ? ((await runSelect(`SELECT ACCOUNT_NAME AS "name" FROM CHART_OF_ACCOUNT WHERE ACCOUNT_ID = :c`, { c: h.bank }))[0] || {}).name : '';
+
+  const lines = await runSelect(
+    `SELECT LINE_NO AS "lineNo", DESCRIPTION AS "desc", AMOUNT AS "amount"
+       FROM XX_AP_ADVANCE_L_T WHERE ADVANCE_ID = :id ORDER BY LINE_NO`, { id });
+
+  // every invoice this advance was used on (at invoice creation OR through a settlement payment)
+  const applied = await runSelect(
+    `SELECT aa.ADJUSTMENT_ID AS "id", i.INVOICE_NO AS "invNo", TO_CHAR(i.INVOICE_DATE,'YYYY-MM-DD') AS "invDate",
+            i.REMARKS AS "note", NVL(i.GROSS_AMOUNT,0) + NVL(i.TAX_AMOUNT,0) AS "invTotal",
+            NVL(i.BALANCE_DUE,0) AS "invBalance", i.STATUS AS "invStatus", aa.ADJUSTED_AMOUNT AS "amount",
+            aa.PAYMENT_ID AS "paymentId", p.PAYMENT_NO AS "payNo", TO_CHAR(p.PAYMENT_DATE,'YYYY-MM-DD') AS "payDate"
+       FROM XX_AP_ADVANCE_ADJUSTMENT_T aa
+       JOIN XX_AP_INVOICE_H_T i ON i.INVOICE_ID = aa.INVOICE_ID
+       LEFT JOIN XX_AP_PAYMENT_H_T p ON p.PAYMENT_ID = aa.PAYMENT_ID
+      WHERE aa.ADVANCE_ID = :id ORDER BY aa.ADJUSTMENT_ID`, { id });
+
+  // all refunds, cancelled ones included
+  const refunds = await runSelect(
+    `SELECT r.REFUND_ID AS "id", r.REFUND_NO AS "no", TO_CHAR(r.REFUND_DATE,'YYYY-MM-DD') AS "date",
+            r.BANK_ACCOUNT_CODE AS "bank", c.ACCOUNT_NAME AS "bankName", r.PAYMENT_METHOD AS "method",
+            r.REFERENCE_NO AS "ref", r.REMARKS AS "remarks", NVL(r.REFUND_AMOUNT,0) AS "amount",
+            NVL(r.STATUS,'Active') AS "status", TO_CHAR(r.LAST_UPDATED_DATE,'YYYY-MM-DD') AS "updatedOn"
+       FROM XX_AP_ADVANCE_REFUND_T r LEFT JOIN CHART_OF_ACCOUNT c ON c.ACCOUNT_ID = r.BANK_ACCOUNT_CODE
+      WHERE r.ADVANCE_ID = :id ORDER BY r.REFUND_ID`, { id });
+
+  // ---- plain-language timeline ----
+  const story = [{ date: h.date, tone: 'info',
+    text: `${num(h.total).toFixed(2)} advance paid to ${sup ? sup.name : 'vendor'} from ${bankName || h.bank || 'bank'}${h.method ? ' by ' + h.method : ''}.` }];
+  for (const a of applied) {
+    story.push({ date: a.payDate || a.invDate, tone: 'ok',
+      text: a.payNo
+        ? `${num(a.amount).toFixed(2)} used to settle invoice ${a.invNo} (through payment ${a.payNo}).`
+        : `${num(a.amount).toFixed(2)} applied to invoice ${a.invNo}.` });
+  }
+  for (const r of refunds) {
+    story.push({ date: r.date, tone: 'warn', text: `${num(r.amount).toFixed(2)} refunded to ${r.bankName || r.bank} (${r.no}).` });
+    if (r.status === 'Cancelled') {
+      story.push({ date: r.updatedOn || r.date, tone: 'err', text: `Refund ${r.no} was cancelled, so ${num(r.amount).toFixed(2)} came back to the advance balance.` });
+    }
+  }
+  story.sort((x, y) => String(x.date).localeCompare(String(y.date)));
+
+  // ---- journals of everything under this advance ----
+  const jRows = await runSelect(
+    `SELECT h.JOURNAL_ID AS "journalId", h.JOURNAL_NO AS "journalNo", TO_CHAR(h.JOURNAL_DATE,'YYYY-MM-DD') AS "date",
+            h.DESCRIPTION AS "description", l.ACCOUNT_CODE AS "account", c.ACCOUNT_NAME AS "accountName",
+            NVL(l.DEBIT_AMOUNT,0) AS "debit", NVL(l.CREDIT_AMOUNT,0) AS "credit"
+       FROM XX_AP_JOURNAL_H_T h
+       JOIN XX_AP_JOURNAL_L_T l ON l.JOURNAL_ID = h.JOURNAL_ID
+       LEFT JOIN CHART_OF_ACCOUNT c ON c.ACCOUNT_ID = l.ACCOUNT_CODE
+      WHERE (h.SOURCE_TYPE = 'ADVANCE' AND h.SOURCE_ID = :id)
+         OR (h.SOURCE_TYPE = 'REFUND' AND h.SOURCE_ID IN (SELECT REFUND_ID FROM XX_AP_ADVANCE_REFUND_T WHERE ADVANCE_ID = :id))
+         OR (h.SOURCE_TYPE = 'INVOICE' AND h.SUPPLIER_ID = :sup AND h.DESCRIPTION LIKE :pat)
+         OR (h.SOURCE_TYPE = 'PAYMENT' AND h.SOURCE_ID IN (SELECT PAYMENT_ID FROM XX_AP_ADVANCE_ADJUSTMENT_T WHERE ADVANCE_ID = :id AND PAYMENT_ID IS NOT NULL))
+      ORDER BY h.JOURNAL_ID, l.LINE_NO`,
+    { id, sup: h.supplierId, pat: `%Advance ${h.no} applied to%` });
+
+  const entries = [];
+  for (const r of jRows) {
+    let e = entries[entries.length - 1];
+    if (!e || e.journalId !== r.journalId) {
+      const d = r.description || '';
+      e = { journalId: r.journalId, journalNo: r.journalNo, date: r.date, description: d,
+            kind: /cancelled/i.test(d) ? 'Reversal' : 'Original', lines: [] };
+      entries.push(e);
+    }
+    e.lines.push({ account: r.account, accountName: r.accountName || '', debit: num(r.debit), credit: num(r.credit) });
+  }
+  const totalDebit = entries.reduce((t, e) => t + e.lines.reduce((s, l) => s + l.debit, 0), 0);
+  const totalCredit = entries.reduce((t, e) => t + e.lines.reduce((s, l) => s + l.credit, 0), 0);
+
+  return {
+    status: 200,
+    body: {
+      ok: true, id, no: h.no, date: h.date, status: h.status, supplierName: sup ? sup.name : '',
+      info: { bank: h.bank ? `${h.bank}${bankName ? ' · ' + bankName : ''}` : '-', method: h.method || '-', ref: h.ref || '-' },
+      summary: { total: num(h.total), applied: num(h.adjusted), refunded: num(h.refunded), balance: num(h.balance) },
+      story, lines, applied, refunds,
+      journal: { entries, totalDebit: Math.round(totalDebit * 100) / 100, totalCredit: Math.round(totalCredit * 100) / 100 },
+    },
+  };
+};

@@ -4169,109 +4169,19 @@ export const updateSettlement = async (body) => {
 
 
 
-// // ---------------------------------------------------------------- everything created under one advance
-// export const getAdvanceDetail = async (params) => {
-//   const id = parseInt(params.id, 10);
-//   if (!id) return { status: 400, body: { ok: false, error: 'Invalid advance' } };
-
-//   const h = (await runSelect(
-//     `SELECT ADVANCE_NO AS "no", TO_CHAR(ADVANCE_DATE,'YYYY-MM-DD') AS "date", BANK_ACCOUNT_CODE AS "bank",
-//             PAYMENT_METHOD AS "method", REFERENCE_NO AS "ref", NVL(ADVANCE_AMOUNT,0) AS "total",
-//             NVL(ADJUSTED_AMOUNT,0) AS "adjusted", NVL(REFUNDED_AMOUNT,0) AS "refunded",
-//             NVL(BALANCE_AMOUNT,0) AS "balance", STATUS AS "status", SUPPLIER_ID AS "supplierId"
-//        FROM XX_AP_ADVANCE_T WHERE ADVANCE_ID = :id`, { id }))[0];
-//   if (!h) return { status: 404, body: { ok: false, error: 'Advance not found' } };
-
-//   const sup = (await runSelect(`SELECT SUPPLIER_NAME AS "name" FROM SUPPLIER_INFO WHERE SUPPLIER_ID = :s`, { s: h.supplierId }))[0];
-//   const bankName = h.bank ? ((await runSelect(`SELECT ACCOUNT_NAME AS "name" FROM CHART_OF_ACCOUNT WHERE ACCOUNT_ID = :c`, { c: h.bank }))[0] || {}).name : '';
-
-//   const lines = await runSelect(
-//     `SELECT LINE_NO AS "lineNo", DESCRIPTION AS "desc", AMOUNT AS "amount"
-//        FROM XX_AP_ADVANCE_L_T WHERE ADVANCE_ID = :id ORDER BY LINE_NO`, { id });
-
-//   // every invoice this advance was used on (at invoice creation OR through a settlement payment)
-//   const applied = await runSelect(
-//     `SELECT aa.ADJUSTMENT_ID AS "id", i.INVOICE_NO AS "invNo", TO_CHAR(i.INVOICE_DATE,'YYYY-MM-DD') AS "invDate",
-//             i.REMARKS AS "note", NVL(i.GROSS_AMOUNT,0) + NVL(i.TAX_AMOUNT,0) AS "invTotal",
-//             NVL(i.BALANCE_DUE,0) AS "invBalance", i.STATUS AS "invStatus", aa.ADJUSTED_AMOUNT AS "amount",
-//             aa.PAYMENT_ID AS "paymentId", p.PAYMENT_NO AS "payNo", TO_CHAR(p.PAYMENT_DATE,'YYYY-MM-DD') AS "payDate"
-//        FROM XX_AP_ADVANCE_ADJUSTMENT_T aa
-//        JOIN XX_AP_INVOICE_H_T i ON i.INVOICE_ID = aa.INVOICE_ID
-//        LEFT JOIN XX_AP_PAYMENT_H_T p ON p.PAYMENT_ID = aa.PAYMENT_ID
-//       WHERE aa.ADVANCE_ID = :id ORDER BY aa.ADJUSTMENT_ID`, { id });
-
-//   // all refunds, cancelled ones included
-//   const refunds = await runSelect(
-//     `SELECT r.REFUND_ID AS "id", r.REFUND_NO AS "no", TO_CHAR(r.REFUND_DATE,'YYYY-MM-DD') AS "date",
-//             r.BANK_ACCOUNT_CODE AS "bank", c.ACCOUNT_NAME AS "bankName", r.PAYMENT_METHOD AS "method",
-//             r.REFERENCE_NO AS "ref", r.REMARKS AS "remarks", NVL(r.REFUND_AMOUNT,0) AS "amount",
-//             NVL(r.STATUS,'Active') AS "status", TO_CHAR(r.LAST_UPDATED_DATE,'YYYY-MM-DD') AS "updatedOn"
-//        FROM XX_AP_ADVANCE_REFUND_T r LEFT JOIN CHART_OF_ACCOUNT c ON c.ACCOUNT_ID = r.BANK_ACCOUNT_CODE
-//       WHERE r.ADVANCE_ID = :id ORDER BY r.REFUND_ID`, { id });
-
-//   // ---- plain-language timeline ----
-//   const story = [{ date: h.date, tone: 'info',
-//     text: `${num(h.total).toFixed(2)} advance paid to ${sup ? sup.name : 'vendor'} from ${bankName || h.bank || 'bank'}${h.method ? ' by ' + h.method : ''}.` }];
-//   for (const a of applied) {
-//     story.push({ date: a.payDate || a.invDate, tone: 'ok',
-//       text: a.payNo
-//         ? `${num(a.amount).toFixed(2)} used to settle invoice ${a.invNo} (through payment ${a.payNo}).`
-//         : `${num(a.amount).toFixed(2)} applied to invoice ${a.invNo}.` });
-//   }
-//   for (const r of refunds) {
-//     story.push({ date: r.date, tone: 'warn', text: `${num(r.amount).toFixed(2)} refunded to ${r.bankName || r.bank} (${r.no}).` });
-//     if (r.status === 'Cancelled') {
-//       story.push({ date: r.updatedOn || r.date, tone: 'err', text: `Refund ${r.no} was cancelled, so ${num(r.amount).toFixed(2)} came back to the advance balance.` });
-//     }
-//   }
-//   story.sort((x, y) => String(x.date).localeCompare(String(y.date)));
-
-//   // ---- journals of everything under this advance ----
-//   const jRows = await runSelect(
-//     `SELECT h.JOURNAL_ID AS "journalId", h.JOURNAL_NO AS "journalNo", TO_CHAR(h.JOURNAL_DATE,'YYYY-MM-DD') AS "date",
-//             h.DESCRIPTION AS "description", l.ACCOUNT_CODE AS "account", c.ACCOUNT_NAME AS "accountName",
-//             NVL(l.DEBIT_AMOUNT,0) AS "debit", NVL(l.CREDIT_AMOUNT,0) AS "credit"
-//        FROM XX_AP_JOURNAL_H_T h
-//        JOIN XX_AP_JOURNAL_L_T l ON l.JOURNAL_ID = h.JOURNAL_ID
-//        LEFT JOIN CHART_OF_ACCOUNT c ON c.ACCOUNT_ID = l.ACCOUNT_CODE
-//       WHERE (h.SOURCE_TYPE = 'ADVANCE' AND h.SOURCE_ID = :id)
-//          OR (h.SOURCE_TYPE = 'REFUND' AND h.SOURCE_ID IN (SELECT REFUND_ID FROM XX_AP_ADVANCE_REFUND_T WHERE ADVANCE_ID = :id))
-//          OR (h.SOURCE_TYPE = 'INVOICE' AND h.SUPPLIER_ID = :sup AND h.DESCRIPTION LIKE :pat)
-//          OR (h.SOURCE_TYPE = 'PAYMENT' AND h.SOURCE_ID IN (SELECT PAYMENT_ID FROM XX_AP_ADVANCE_ADJUSTMENT_T WHERE ADVANCE_ID = :id AND PAYMENT_ID IS NOT NULL))
-//       ORDER BY h.JOURNAL_ID, l.LINE_NO`,
-//     { id, sup: h.supplierId, pat: `%Advance ${h.no} applied to%` });
-
-//   const entries = [];
-//   for (const r of jRows) {
-//     let e = entries[entries.length - 1];
-//     if (!e || e.journalId !== r.journalId) {
-//       const d = r.description || '';
-//       e = { journalId: r.journalId, journalNo: r.journalNo, date: r.date, description: d,
-//             kind: /cancelled/i.test(d) ? 'Reversal' : 'Original', lines: [] };
-//       entries.push(e);
-//     }
-//     e.lines.push({ account: r.account, accountName: r.accountName || '', debit: num(r.debit), credit: num(r.credit) });
-//   }
-//   const totalDebit = entries.reduce((t, e) => t + e.lines.reduce((s, l) => s + l.debit, 0), 0);
-//   const totalCredit = entries.reduce((t, e) => t + e.lines.reduce((s, l) => s + l.credit, 0), 0);
-
-//   return {
-//     status: 200,
-//     body: {
-//       ok: true, id, no: h.no, date: h.date, status: h.status, supplierName: sup ? sup.name : '',
-//       info: { bank: h.bank ? `${h.bank}${bankName ? ' · ' + bankName : ''}` : '-', method: h.method || '-', ref: h.ref || '-' },
-//       summary: { total: num(h.total), applied: num(h.adjusted), refunded: num(h.refunded), balance: num(h.balance) },
-//       story, lines, applied, refunds,
-//       journal: { entries, totalDebit: Math.round(totalDebit * 100) / 100, totalCredit: Math.round(totalCredit * 100) / 100 },
-//     },
-//   };
-// };
-
-// ---------------------------------------------------------------- everything created under one advance
+// ---------------------------------------------------------------- advance statement (eye icon in "Advance payments")
 // service.js te ager getAdvanceDetail pura replace kore eta boshao.
-// Response: { ok, id, no, date, status, supplierName, info, lines, summary, rows }
-// rows = ei advance-er under shob journal (ADVANCE / INVOICE / PAYMENT / REFUND), screenshot-er list-er moto,
-// protita row-er sathe `detail` (click korle jeta dekhabe) ar `lines` (debit/credit).
+// Response:
+//  { ok, id, no, date, status, supplierName, info, summary,
+//    advance:  { date, voucher, description, amount },
+//    invoices: [{ no, date, voucher, description, total, balance, status,
+//                 applies: [{ date, voucher, description, amount }] }],
+//    refunds:  [{ date, voucher, description, amount, reversal }] }
+
+// "(Advance payment ADV-1) - note"  ->  "Advance payment ADV-1 - note"
+const tidyDesc = (d) => String(d || '').replace(/^\(([^)]*)\)\s*-\s*/, '$1 - ').replace(/^\(([^)]*)\)$/, '$1');
+const isCancelledDesc = (d) => /cancelled/i.test(d || '');
+
 export const getAdvanceDetail = async (params) => {
   const id = parseInt(params.id, 10);
   if (!id) return { status: 400, body: { ok: false, error: 'Invalid advance' } };
@@ -4287,115 +4197,74 @@ export const getAdvanceDetail = async (params) => {
   const sup = (await runSelect(`SELECT SUPPLIER_NAME AS "name" FROM SUPPLIER_INFO WHERE SUPPLIER_ID = :s`, { s: h.supplierId }))[0];
   const bankName = h.bank ? ((await runSelect(`SELECT ACCOUNT_NAME AS "name" FROM CHART_OF_ACCOUNT WHERE ACCOUNT_ID = :c`, { c: h.bank }))[0] || {}).name : '';
 
-  const advLines = await runSelect(
-    `SELECT LINE_NO AS "lineNo", DESCRIPTION AS "desc", AMOUNT AS "amount"
-       FROM XX_AP_ADVANCE_L_T WHERE ADVANCE_ID = :id ORDER BY LINE_NO`, { id });
-
-  // every invoice this advance was used on (at invoice creation OR through a settlement payment)
+  // every use of this advance (at invoice creation OR through a settlement payment)
   const applied = await runSelect(
     `SELECT aa.ADJUSTMENT_ID AS "id", aa.INVOICE_ID AS "invoiceId", i.INVOICE_NO AS "invNo",
-            TO_CHAR(i.INVOICE_DATE,'YYYY-MM-DD') AS "invDate", TO_CHAR(i.DUE_DATE,'YYYY-MM-DD') AS "invDue",
-            i.REMARKS AS "note", NVL(i.GROSS_AMOUNT,0) + NVL(i.TAX_AMOUNT,0) AS "invTotal",
-            NVL(i.BALANCE_DUE,0) AS "invBalance", i.STATUS AS "invStatus", aa.ADJUSTED_AMOUNT AS "amount",
-            aa.PAYMENT_ID AS "paymentId", p.PAYMENT_NO AS "payNo"
+            TO_CHAR(i.INVOICE_DATE,'YYYY-MM-DD') AS "invDate", i.REMARKS AS "note",
+            NVL(i.GROSS_AMOUNT,0) + NVL(i.TAX_AMOUNT,0) AS "invTotal", NVL(i.BALANCE_DUE,0) AS "invBalance",
+            i.STATUS AS "invStatus", aa.ADJUSTED_AMOUNT AS "amount", aa.PAYMENT_ID AS "paymentId"
        FROM XX_AP_ADVANCE_ADJUSTMENT_T aa
        JOIN XX_AP_INVOICE_H_T i ON i.INVOICE_ID = aa.INVOICE_ID
-       LEFT JOIN XX_AP_PAYMENT_H_T p ON p.PAYMENT_ID = aa.PAYMENT_ID
-      WHERE aa.ADVANCE_ID = :id ORDER BY aa.ADJUSTMENT_ID`, { id });
+      WHERE aa.ADVANCE_ID = :id ORDER BY aa.INVOICE_ID, aa.ADJUSTMENT_ID`, { id });
 
-  // all refunds, cancelled ones included
-  const refunds = await runSelect(
-    `SELECT r.REFUND_ID AS "id", r.REFUND_NO AS "no", TO_CHAR(r.REFUND_DATE,'YYYY-MM-DD') AS "date",
-            r.BANK_ACCOUNT_CODE AS "bank", c.ACCOUNT_NAME AS "bankName", r.PAYMENT_METHOD AS "method",
-            r.REFERENCE_NO AS "ref", r.REMARKS AS "remarks", NVL(r.REFUND_AMOUNT,0) AS "amount",
-            NVL(r.STATUS,'Active') AS "status"
-       FROM XX_AP_ADVANCE_REFUND_T r LEFT JOIN CHART_OF_ACCOUNT c ON c.ACCOUNT_ID = r.BANK_ACCOUNT_CODE
-      WHERE r.ADVANCE_ID = :id ORDER BY r.REFUND_ID`, { id });
+  const refundIds = (await runSelect(`SELECT REFUND_ID AS "id" FROM XX_AP_ADVANCE_REFUND_T WHERE ADVANCE_ID = :id`, { id })).map((r) => Number(r.id));
+  const invIds = [...new Set(applied.map((a) => Number(a.invoiceId)))];
+  const payIds = [...new Set(applied.filter((a) => a.paymentId !== null && a.paymentId !== undefined).map((a) => Number(a.paymentId)))];
 
-  // ---- per-invoice info (one invoice can draw from this advance more than once) ----
-  const invoices = {};
-  for (const a of applied) {
-    const inv = (invoices[a.invoiceId] ||= {
-      invoiceId: a.invoiceId, no: a.invNo, date: a.invDate, due: a.invDue, note: a.note || '',
-      total: num(a.invTotal), balance: num(a.invBalance), status: a.invStatus, fromAdvance: 0, lines: [],
-    });
-    inv.fromAdvance = Math.round((inv.fromAdvance + num(a.amount)) * 100) / 100;
-  }
-  const invIds = Object.keys(invoices).map(Number);
-  if (invIds.length) {
-    const b = {};
-    invIds.forEach((x, i) => { b['i' + i] = x; });
-    const il = await runSelect(
-      `SELECT l.INVOICE_ID AS "invoiceId", l.LINE_NO AS "lineNo", l.ACCOUNT_CODE AS "account", c.ACCOUNT_NAME AS "accountName",
-              l.ITEM_DESCRIPTION AS "desc", NVL(l.QTY,1) * NVL(l.UNIT_PRICE,0) AS "amount"
-         FROM XX_AP_INVOICE_L_T l LEFT JOIN CHART_OF_ACCOUNT c ON c.ACCOUNT_ID = l.ACCOUNT_CODE
-        WHERE l.INVOICE_ID IN (${invIds.map((_, i) => ':i' + i).join(',')}) ORDER BY l.INVOICE_ID, l.LINE_NO`, b);
-    for (const l of il) {
-      invoices[l.invoiceId].lines.push({ lineNo: l.lineNo, account: l.account, accountName: l.accountName || '', desc: l.desc || '', amount: num(l.amount) });
-    }
-  }
-
-  // ---- every journal under this advance: the advance itself, its invoices (created + applied), payments, refunds ----
-  const jBinds = { id };
-  const invClause = invIds.length ? ` OR (h.SOURCE_TYPE = 'INVOICE' AND h.SOURCE_ID IN (${invIds.map((x, i) => { jBinds['v' + i] = x; return ':v' + i; }).join(',')}))` : '';
-  const jRows = await runSelect(
+  // ---- journal headers of everything under this advance ----
+  const jb = { id };
+  const inList = (prefix, ids) => ids.map((x, i) => { jb[prefix + i] = x; return ':' + prefix + i; }).join(',');
+  const parts = [`(h.SOURCE_TYPE = 'ADVANCE' AND h.SOURCE_ID = :id)`];
+  if (invIds.length) parts.push(`(h.SOURCE_TYPE = 'INVOICE' AND h.SOURCE_ID IN (${inList('v', invIds)}))`);
+  if (payIds.length) parts.push(`(h.SOURCE_TYPE = 'PAYMENT' AND h.SOURCE_ID IN (${inList('p', payIds)}))`);
+  if (refundIds.length) parts.push(`(h.SOURCE_TYPE = 'REFUND' AND h.SOURCE_ID IN (${inList('r', refundIds)}))`);
+  const jr = await runSelect(
     `SELECT h.JOURNAL_ID AS "journalId", h.JOURNAL_NO AS "journalNo", TO_CHAR(h.JOURNAL_DATE,'YYYY-MM-DD') AS "date",
             h.DESCRIPTION AS "description", h.SOURCE_TYPE AS "sourceType", h.SOURCE_ID AS "sourceId",
-            NVL(h.TOTAL_AMOUNT,0) AS "amount", l.ACCOUNT_CODE AS "account", c.ACCOUNT_NAME AS "accountName",
-            NVL(l.DEBIT_AMOUNT,0) AS "debit", NVL(l.CREDIT_AMOUNT,0) AS "credit"
-       FROM XX_AP_JOURNAL_H_T h
-       JOIN XX_AP_JOURNAL_L_T l ON l.JOURNAL_ID = h.JOURNAL_ID
-       LEFT JOIN CHART_OF_ACCOUNT c ON c.ACCOUNT_ID = l.ACCOUNT_CODE
-      WHERE (h.SOURCE_TYPE = 'ADVANCE' AND h.SOURCE_ID = :id)
-         OR (h.SOURCE_TYPE = 'REFUND' AND h.SOURCE_ID IN (SELECT REFUND_ID FROM XX_AP_ADVANCE_REFUND_T WHERE ADVANCE_ID = :id))
-         OR (h.SOURCE_TYPE = 'PAYMENT' AND h.SOURCE_ID IN (SELECT PAYMENT_ID FROM XX_AP_ADVANCE_ADJUSTMENT_T WHERE ADVANCE_ID = :id AND PAYMENT_ID IS NOT NULL))
-         ${invClause}
-      ORDER BY h.JOURNAL_ID, l.LINE_NO`, jBinds);
+            NVL(h.TOTAL_AMOUNT,0) AS "amount"
+       FROM XX_AP_JOURNAL_H_T h WHERE ${parts.join(' OR ')} ORDER BY h.JOURNAL_ID`, jb);
 
-  const byJournal = new Map();
-  for (const r of jRows) {
-    let e = byJournal.get(r.journalId);
-    if (!e) {
-      e = { journalId: r.journalId, journalNo: r.journalNo, date: r.date, description: r.description || '',
-            type: r.sourceType, sourceId: r.sourceId, amount: num(r.amount), lines: [] };
-      byJournal.set(r.journalId, e);
+  let advJ = null;
+  const invJ = {}, applyJ = {}, payJ = {}, refundRows = [];
+  for (const j of jr) {
+    const desc = j.description || '';
+    if (j.sourceType === 'ADVANCE') { advJ = advJ || j; }
+    else if (j.sourceType === 'INVOICE') {
+      if (isCancelledDesc(desc)) continue;
+      if (/Advance \S+ applied to/i.test(desc)) {
+        // another advance applied to the same invoice has its own journal: ignore it here
+        if (desc.includes(`Advance ${h.no} applied`)) applyJ[j.sourceId] = applyJ[j.sourceId] || j;
+      } else invJ[j.sourceId] = invJ[j.sourceId] || j;
+    } else if (j.sourceType === 'PAYMENT') {
+      if (!isCancelledDesc(desc)) payJ[j.sourceId] = payJ[j.sourceId] || j;
+    } else if (j.sourceType === 'REFUND') {
+      refundRows.push({ date: j.date, voucher: j.journalNo, description: tidyDesc(desc), amount: num(j.amount), reversal: isCancelledDesc(desc) });
     }
-    e.lines.push({ account: r.account, accountName: r.accountName || '', debit: num(r.debit), credit: num(r.credit) });
   }
 
-  const rows = [];
-  for (const e of byJournal.values()) {
-    const reversal = /cancelled/i.test(e.description);
-    const isApply = /Advance \S+ applied to/i.test(e.description);
-    // another advance applied to the same invoice has its own journal: skip it here
-    if (e.type === 'INVOICE' && isApply && !e.description.includes(`Advance ${h.no} applied`)) continue;
-
-    let detail = null;
-    if (e.type === 'ADVANCE') {
-      detail = {
-        kind: 'advance',
-        fields: [
-          { label: 'Paid from', value: h.bank ? `${h.bank}${bankName ? ' · ' + bankName : ''}` : '-' },
-          { label: 'Method', value: h.method || '-' },
-          { label: 'Reference', value: h.ref || '-' },
-        ],
-        lines: advLines.map((l) => ({ lineNo: l.lineNo, desc: l.desc || '', amount: num(l.amount) })),
-        total: num(h.total),
+  // ---- invoices under this advance, each with its "advance applied" rows ----
+  const byInvoice = {};
+  const invoices = [];
+  for (const a of applied) {
+    let inv = byInvoice[a.invoiceId];
+    if (!inv) {
+      const j = invJ[a.invoiceId];
+      inv = byInvoice[a.invoiceId] = {
+        no: a.invNo, date: (j && j.date) || a.invDate, voucher: j ? j.journalNo : '-',
+        description: j ? tidyDesc(j.description) : `Payable invoice ${a.invNo}${a.note ? ' - ' + a.note : ''}`,
+        total: num(a.invTotal), balance: num(a.invBalance), status: a.invStatus, applies: [],
       };
-    } else if (e.type === 'INVOICE') {
-      const inv = invoices[e.sourceId];
-      if (inv) detail = { kind: isApply ? 'apply' : 'invoice', invoice: inv };
-    } else if (e.type === 'PAYMENT') {
-      const items = applied.filter((a) => Number(a.paymentId) === Number(e.sourceId))
-        .map((a) => ({ invNo: a.invNo, note: a.note || '', amount: num(a.amount) }));
-      const pay = applied.find((a) => Number(a.paymentId) === Number(e.sourceId));
-      detail = { kind: 'payment', payNo: pay ? pay.payNo : '', items };
-    } else if (e.type === 'REFUND') {
-      const r = refunds.find((x) => Number(x.id) === Number(e.sourceId));
-      if (r) detail = { kind: 'refund', refund: r };
+      invoices.push(inv);
     }
-    rows.push({ ...e, reversal, detail });
+    const j = a.paymentId !== null && a.paymentId !== undefined ? payJ[a.paymentId] : applyJ[a.invoiceId];
+    inv.applies.push({
+      date: (j && j.date) || a.invDate,
+      voucher: j ? j.journalNo : '-',
+      description: j ? tidyDesc(j.description) : `Advance ${h.no} applied to ${a.invNo}`,
+      amount: num(a.amount),
+    });
   }
+  invoices.sort((x, y) => String(x.date).localeCompare(String(y.date)));
 
   return {
     status: 200,
@@ -4403,8 +4272,14 @@ export const getAdvanceDetail = async (params) => {
       ok: true, id, no: h.no, date: h.date, status: h.status, supplierName: sup ? sup.name : '',
       info: { bank: h.bank ? `${h.bank}${bankName ? ' · ' + bankName : ''}` : '-', method: h.method || '-', ref: h.ref || '-' },
       summary: { total: num(h.total), applied: num(h.adjusted), refunded: num(h.refunded), balance: num(h.balance) },
-      lines: advLines.map((l) => ({ lineNo: l.lineNo, desc: l.desc || '', amount: num(l.amount) })),
-      rows,
+      advance: {
+        date: (advJ && advJ.date) || h.date,
+        voucher: advJ ? advJ.journalNo : '-',
+        description: advJ ? tidyDesc(advJ.description) : `Advance payment ${h.no}`,
+        amount: num(h.total),
+      },
+      invoices,
+      refunds: refundRows,
     },
   };
 };

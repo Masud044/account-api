@@ -2827,10 +2827,17 @@ async function assertAccountsExist(codes) {
 // The invoice's Description (stored in REMARKS) is carried into every journal
 // description / line so it shows up everywhere (recent activity, GL voucher, reports).
 // Capped so it can never overflow a narrow DESCRIPTION column.
+// const withNote = (base, note) => {
+//   const n = String(note || '').trim();
+//   // base text goes inside brackets, the user's description stays outside: (Advance payment ADV-000037) - fish test
+//   const t = n ? `(${base}) - ${n}` : base;
+//   return t.length > 150 ? t.slice(0, 147) + '...' : t;
+// };
+
 const withNote = (base, note) => {
   const n = String(note || '').trim();
-  // base text goes inside brackets, the user's description stays outside: (Advance payment ADV-000037) - fish test
-  const t = n ? `(${base}) - ${n}` : base;
+  // user's description age, base text bracket e pore: test for advanced-(Advance payment ADV-000035)
+  const t = n ? `${n} - (${base})` : base;
   return t.length > 150 ? t.slice(0, 147) + '...' : t;
 };
 
@@ -3724,7 +3731,7 @@ export const getTransaction = async (params, query = {}) => {
   for (const r of jRows) {
     let e = entries[entries.length - 1];
     if (!e || e.journalId !== r.journalId) {
-      e = { journalId: r.journalId, journalNo: r.journalNo, date: r.date, description: r.description || '', kind: /^\(?(Invoice|Payment|Refund) \S+ cancelled/i.test(r.description || '') ? 'Reversal' : 'Original', lines: [] };
+      e = { journalId: r.journalId, journalNo: r.journalNo, date: r.date, description: r.description || '', kind: /(Invoice|Payment|Refund) \S+ cancelled\)?$/i.test(r.description || '') ? 'Reversal' : 'Original', lines: [] };
       entries.push(e);
     }
     e.lines.push({ account: r.account, accountName: r.accountName || '', debit: num(r.debit), credit: num(r.credit) });
@@ -3746,7 +3753,8 @@ export const getTransaction = async (params, query = {}) => {
   }
   // "Advance ADV-x applied to INV-y" journal of an invoice: show its own header instead of the invoice's.
   if (sourceType === 'INVOICE' && journalId && entries.length) {
-    const m = /^\(?Advance ([^\s)]+) applied to ([^\s)]+)/i.exec(entries[0].description);
+    // const m = /^\(?Advance ([^\s)]+) applied to ([^\s)]+)/i.exec(entries[0].description);
+    const m = /Advance ([^\s)]+) applied to ([^\s)]+)/i.exec(entries[0].description);
     if (m) {
       const amt = `৳${num(totalDebit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       title = `Payment ${m[2]}`;
